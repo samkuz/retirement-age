@@ -2,7 +2,12 @@
 
 package io.phdata.retirementage.loadgen
 
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import java.util.UUID
+
+import org.apache.spark.sql.types.{StringType, StructField, StructType}
+import org.apache.spark.sql.{DataFrame, Row, SaveMode, SparkSession}
+
+import scala.collection.mutable.ListBuffer
 
 object LoadGenerator {
   def main(args: Array[String]): Unit = {
@@ -27,7 +32,27 @@ object LoadGenerator {
     * @param payloadBytes Payload size
     * @return The test dataframe
     */
-  def generateTable(numRecords: Int, payloadBytes: Int): DataFrame = ???
+  def generateTable(spark: SparkSession, numRecords: Int, payloadBytes: Int): DataFrame = {
+    val schema = StructType(StructField("id", StringType, false) :: Nil)
+      .add(StructField("payload", StringType, false))
+    var dataBuffer = ListBuffer[List[String]]()
+    var i          = 0
+    var byteString = ""
+    for (i <- 1 to payloadBytes) {
+      byteString = byteString + "a"
+    }
+    var j = 0
+    for (j <- 1 to numRecords) {
+      dataBuffer += List(UUID.randomUUID().toString.substring(0, 7), byteString)
+    }
+    val dataList = dataBuffer.toList
+
+    val rows = dataList.map(x => Row(x: _*))
+    val rdd  = spark.sparkContext.makeRDD(rows)
+
+    // Returning DataFrame
+    spark.createDataFrame(rdd, schema)
+  }
 
   /**
     * Generates a test dataframe with keys from the parent used as foreign keys
@@ -35,5 +60,6 @@ object LoadGenerator {
     * @param payloadBytes Payload size
     * @return The test dataframe
     */
-  def generateTableFromParent(numRecords: Int, payloadBytes: Int, parent: DataFrame): DataFrame = ???
+  def generateTableFromParent(numRecords: Int, payloadBytes: Int, parent: DataFrame): DataFrame =
+    ???
 }
