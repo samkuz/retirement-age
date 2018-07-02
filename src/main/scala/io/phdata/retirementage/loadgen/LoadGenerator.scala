@@ -33,20 +33,27 @@ object LoadGenerator {
     * @return The test dataframe
     */
   def generateTable(spark: SparkSession, numRecords: Int, payloadBytes: Int): DataFrame = {
+    /**
+      * Create the following schema:
+      *   -- id: String (nullable = false)
+      *   -- payload: String (nullable = false)
+      */
     val schema = StructType(StructField("id", StringType, false) :: Nil)
       .add(StructField("payload", StringType, false))
     var dataBuffer = ListBuffer[List[String]]()
+    // Create a string with specified bytes
     var i          = 0
     var byteString = ""
     for (i <- 1 to payloadBytes) {
       byteString = byteString + "a"
     }
+    // Create numRecords rows of data with a random UUID and attached a payload of specified bytes
     var j = 0
     for (j <- 1 to numRecords) {
       dataBuffer += List(UUID.randomUUID().toString.substring(0, 7), byteString)
     }
     val dataList = dataBuffer.toList
-
+    // Creating rows and RDD for the DataFrame
     val rows = dataList.map(x => Row(x: _*))
     val rdd  = spark.sparkContext.makeRDD(rows)
 
