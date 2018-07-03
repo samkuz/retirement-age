@@ -99,7 +99,7 @@ object LoadGenerator {
                               numRecords: Int,
                               payloadBytes: Int,
                               parent: DataFrame): DataFrame = {
-    var i          = 0
+    var i = 0
     var byteString = ""
     for (i <- 1 to payloadBytes) {
       byteString = byteString + "a"
