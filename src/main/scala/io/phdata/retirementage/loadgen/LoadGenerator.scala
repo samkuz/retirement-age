@@ -19,11 +19,23 @@ object LoadGenerator {
 
   def generateTables(spark: SparkSession, conf: LoadGeneratorConfig): Unit = {
     // generate fact table
+    val fdf = generateTable(spark, conf.factCount.getOrElse(0), 1)
     // write fact table to disk
+    fdf.write
+      .mode(SaveMode.Overwrite)
+      .parquet(s"${conf.databaseName}.${conf.factName.getOrElse("factLoadTest")}")
     // generate dimension table
+    val ddf = generateTable(spark, conf.dimensionCount.getOrElse(0), 1)
     // write dimension table to disk
+    ddf.write
+      .mode(SaveMode.Overwrite)
+      .parquet(s"${conf.databaseName}.${conf.dimName.getOrElse("dimLoadTest")}")
     // generate subdimension table
+    val sdf = generateTable(spark, conf.subDimensionCount.getOrElse(0), 1)
     // write subdimension table to disk
+    sdf.write
+      .mode(SaveMode.Overwrite)
+      .parquet(s"${conf.databaseName}.${conf.subName.getOrElse("subLoadTest")}")
   }
 
   /**
@@ -33,6 +45,7 @@ object LoadGenerator {
     * @return The test dataframe
     */
   def generateTable(spark: SparkSession, numRecords: Int, payloadBytes: Int): DataFrame = {
+
     /**
       * Create the following schema:
       *   -- id: String (nullable = false)

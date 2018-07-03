@@ -5,10 +5,14 @@ package io.phdata.retirementage.loadgen
 import org.rogach.scallop.ScallopConf
 
 class LoadGeneratorConfig(args: Array[String]) extends ScallopConf(args) {
-  val factCount = opt[Int]("fact-count", required = true)
-  val dimensionCount = opt[Int]("dimension-count", required = true)
+  val factCount         = opt[Int]("fact-count", required = true)
+  val dimensionCount    = opt[Int]("dimension-count", required = true)
   val subDimensionCount = opt[Int]("subdimension-count", required = true)
-  val databaseName = opt[String]("database-name", required = true)
+  val databaseName      = opt[String]("database-name", required = true)
+
+  val factName = opt[String]("fact-name", required = false)
+  val dimName = opt[String]("fact-name", required = false)
+  val subName = opt[String]("fact-name", required = false)
 
   verify()
 }
