@@ -11,8 +11,8 @@ class LoadGeneratorConfig(args: Array[String]) extends ScallopConf(args) {
   val databaseName      = opt[String]("database-name", required = true)
 
   val factName = opt[String]("fact-name", required = false)
-  val dimName = opt[String]("fact-name", required = false)
-  val subName = opt[String]("fact-name", required = false)
+  val dimName = opt[String]("dim-name", required = false)
+  val subName = opt[String]("subdim-name", required = false)
 
   verify()
 }
