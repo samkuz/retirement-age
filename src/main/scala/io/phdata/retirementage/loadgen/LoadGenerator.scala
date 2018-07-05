@@ -3,8 +3,11 @@
 package io.phdata.retirementage.loadgen
 
 import java.util.UUID
+
+import org.apache.spark.SparkContext
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SaveMode, SparkSession}
+
 import scala.collection.mutable.ListBuffer
 import org.apache.spark.sql.functions.lit
 
@@ -57,41 +60,35 @@ object LoadGenerator {
     // Create a string with specified bytes
     val byteString = "a" * payloadBytes
 
-    var dataBuffer = ListBuffer[List[String]]()
+    // Num of records for each partition
+    val recordNum = 5000
 
-    // Start: new create from numRecords
-    val numUnions    = math.ceil(numRecords / 5000).toInt
-    val unionRecords = math.ceil(numRecords / numUnions).toInt
+    // Calculate the number of unions to be made, and the records in each partition
+    val numPartitions    = math.ceil(numRecords / recordNum).toInt
+    val partitionRecords = math.ceil(numRecords / numPartitions).toInt
 
-    // Create initial dataframe to Union following dataframes to
-    val initList = List(List(UUID.randomUUID().toString.substring(0, 9), byteString, tempDateGenerator()))
+    // Create a sequence of dataframes
+    val alldata = (1 to numPartitions).map(x => {
+      val rawdata = (1 to partitionRecords)
+      val newdata =
+        rawdata.map(x => Seq(UUID.randomUUID().toString(), byteString, tempDateGenerator()))
+      val rows = newdata.map(x => Row(x: _*))
+      val rdd  = spark.sparkContext.makeRDD(rows)
+      spark.createDataFrame(rdd, schema)
+    })
 
-    val rows = initList.map(x => Row(x: _*))
-    val rdd  = spark.sparkContext.makeRDD(rows)
+    // Create dataFrame to fold onto named initDF
+    val dummyData = Seq(UUID.randomUUID().toString(), byteString, tempDateGenerator())
+    val rows      = dummyData.map(x => Row(x: _*))
+    val rdd       = spark.sparkContext.makeRDD(rows)
+    var initDF    = spark.createDataFrame(rdd, schema)
 
-    val fullDF = spark.createDataFrame(rdd,schema)
-    // Create lists of size 5000 and then convert to dataframes to union to aggregate dataframe
-    for (x <- 1 to numUnions) {
-        dataBuffer = null
-        for (y <- 1 to unionRecords) {
-          dataBuffer += List(UUID.randomUUID().toString.substring(0, 9),
-                             byteString,
-                             tempDateGenerator())
-        }
+    // Union the sequence of dataframes onto initDF
+    alldata.foldLeft(initDF)(tempUnion)
+  }
 
-        val dataList = dataBuffer.toList
-        // Creating rows and RDD for the DataFrame
-        val temprows = dataList.map(x => Row(x: _*))
-        val temprdd  = spark.sparkContext.makeRDD(temprows)
-
-        val tempdf = spark.createDataFrame(temprdd, schema)
-
-        fullDF.union(tempdf)
-      }
-
-    fullDF
-
-    // END
+  def tempUnion(a: DataFrame, b: DataFrame): DataFrame = {
+    a.union(b)
   }
 
   // Create date data with 2016-12-25, 2017-12-25, 2018-12-25
