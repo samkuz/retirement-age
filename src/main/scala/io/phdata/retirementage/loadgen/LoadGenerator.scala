@@ -18,23 +18,23 @@ object LoadGenerator {
 
   def generateTables(spark: SparkSession, conf: LoadGeneratorConfig): Unit = {
     // generate fact table
-    val factdf = generateTable(spark, conf.factCount.getOrElse(0), 1)
+    val factdf = generateTable(spark, conf.factCount.apply(), 1)
     // write fact table to disk
     factdf.write
       .mode(SaveMode.Overwrite)
-      .parquet(s"${conf.databaseName}.${conf.factName.getOrElse("factLoadTest")}")
+      .parquet(s"${conf.databaseName}.${conf.factName.apply()}")
     // generate dimension table
-    val dimdf = generateTableFromParent(spark, conf.dimensionCount.getOrElse(0), 3, factdf)
+    val dimdf = generateTableFromParent(spark, conf.dimensionCount.apply(), 3, factdf)
     // write dimension table to disk
     dimdf.write
       .mode(SaveMode.Overwrite)
-      .parquet(s"${conf.databaseName}.${conf.dimName.getOrElse("dimLoadTest")}")
+      .parquet(s"${conf.databaseName}.${conf.dimName.apply()}")
     // generate subdimension table
-    val sdf = generateTableFromParent(spark, conf.subDimensionCount.getOrElse(0), 1, dimdf)
+    val sdf = generateTableFromParent(spark, conf.subDimensionCount.apply(), 1, dimdf)
     // write subdimension table to disk
     sdf.write
       .mode(SaveMode.Overwrite)
-      .parquet(s"${conf.databaseName}.${conf.subName.getOrElse("subLoadTest")}")
+      .parquet(s"${conf.databaseName}.${conf.subName.apply()}")
   }
 
   /**
@@ -92,22 +92,6 @@ object LoadGenerator {
     fullDF
 
     // END
-
-    /*
-    // Create numRecords rows of data with a random UUID and attached a payload of specified bytes and a date
-    for (j <- 1 to numRecords) {
-      dataBuffer += List(UUID.randomUUID().toString.substring(0, 9),
-                         byteString,
-                         tempDateGenerator(j))
-    }
-    val dataList = dataBuffer.toList
-    // Creating rows and RDD for the DataFrame
-    val rows = dataList.map(x => Row(x: _*))
-    val rdd  = spark.sparkContext.makeRDD(rows)
-
-    // Returning DataFrame
-    spark.createDataFrame(rdd, schema)
-   */
   }
 
   // Create date data with 2016-12-25, 2017-12-25, 2018-12-25
