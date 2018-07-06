@@ -25,11 +25,26 @@ import org.apache.spark.sql.functions.lit
 object LoadGenerator {
   def main(args: Array[String]): Unit = {
 
-    val conf      = new LoadGeneratorConfig(args)
+    //val conf      = new LoadGeneratorConfig(args)
     val sparkConf = new SparkConf()
 
-    val spark = SparkSession.builder().enableHiveSupport().config(sparkConf).getOrCreate()
-    generateTables(spark, conf)
+    val spark = SparkSession
+      .builder()
+      .enableHiveSupport()
+      .appName("load-generator")
+      .config(sparkConf)
+      .getOrCreate()
+    // Temporary testing features
+    val tempdf = generateTable(spark, 1000000, 1)
+
+//    val databaseName = conf.databaseName.apply()
+//    val tableName    = conf.factName.apply()
+//    tempdf.write.mode(SaveMode.Overwrite).parquet(s"${databaseName}.${tableName}")
+
+    // Quickly test factloadTest
+    tempdf.write.mode(SaveMode.Overwrite).parquet("raw_intern_workspace.factloadTest")
+
+    //generateTables(spark, conf)
   }
 
   def generateTables(spark: SparkSession, conf: LoadGeneratorConfig): Unit = {
@@ -133,22 +148,22 @@ object LoadGenerator {
 
     val byteString = "a" * payloadBytes
 
-    // Create a temporary dimension dataframe
+    // Create a temporary dimension dataframe with the incorrect colum nmaes
     val oldDimensionDf = parent
       .select("dimensionId")
       .limit(numRecords)
       .withColumn("payload", lit(byteString))
       .withColumn("subdimensionId", lit(UUID.randomUUID().toString()))
       .withColumn("date", lit("2222-22-22"))
-
+    // Correct column names
     val newNames = Seq("id", "payload", "dimensionId", "date")
-    // Create a dimension DF with correct schema
+    // Create a dimension DF with correct column names
     val dimensionDf = oldDimensionDf.toDF(newNames: _*)
 
     // If numRecords > parentNumRecords creates the difference to union to the dimension dataframe
     if (numRecords > parentNumRecords) {
-      val newRowsnum = numRecords - parentNumRecords
-      val tempDf     = generateTable(spark, newRowsnum, payloadBytes)
+      val newRowsNum = numRecords - parentNumRecords
+      val tempDf     = generateTable(spark, newRowsNum, payloadBytes)
 
       dimensionDf.union(tempDf)
     } else {

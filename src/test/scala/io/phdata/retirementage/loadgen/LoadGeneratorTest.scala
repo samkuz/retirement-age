@@ -30,7 +30,7 @@ class LoadGeneratorTest extends FunSuite {
     val factDf    = LoadGenerator.generateTable(spark, factCount, 1)
     // Create a dimension-table
     val dimensionCount = 750000
-    val dimDf = LoadGenerator.generateTableFromParent(spark, dimensionCount, 1, factCount, factDf)
+    val dimDf          = LoadGenerator.generateTableFromParent(spark, dimensionCount, 1, factCount, factDf)
 
     // Join fact-table with dimension-table over dimensionId in fact-table and the dimension-table id field
     val joinDf = factDf.join(dimDf, factDf("dimensionId") === dimDf("id"))
@@ -61,7 +61,7 @@ class LoadGeneratorTest extends FunSuite {
     val factDf    = LoadGenerator.generateTable(spark, factCount, 1)
     // Create a dimension-table
     val dimensionCount = 750000
-    val dimDf = LoadGenerator.generateTableFromParent(spark, dimensionCount, 1, factCount, factDf)
+    val dimDf          = LoadGenerator.generateTableFromParent(spark, dimensionCount, 1, factCount, factDf)
 
     assertResult(750000)(dimDf.count())
   }
@@ -75,7 +75,7 @@ class LoadGeneratorTest extends FunSuite {
     val factDf    = LoadGenerator.generateTable(spark, factCount, 1)
     // Create a dimension-table
     val dimensionCount = 1200000
-    val dimDf = LoadGenerator.generateTableFromParent(spark, dimensionCount, 1, factCount, factDf)
+    val dimDf          = LoadGenerator.generateTableFromParent(spark, dimensionCount, 1, factCount, factDf)
 
     assertResult(1200000)(dimDf.count())
   }
