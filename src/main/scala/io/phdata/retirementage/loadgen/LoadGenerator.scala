@@ -133,13 +133,17 @@ object LoadGenerator {
 
     val byteString = "a" * payloadBytes
 
-    // Create a dimension dataframe
-    val dimensionDf = parent
+    // Create a temporary dimension dataframe
+    val oldDimensionDf = parent
       .select("dimensionId")
       .limit(numRecords)
       .withColumn("payload", lit(byteString))
       .withColumn("subdimensionId", lit(UUID.randomUUID().toString()))
       .withColumn("date", lit("2222-22-22"))
+
+    val newNames = Seq("id", "payload", "dimensionId", "date")
+    // Create a dimension DF with correct schema
+    val dimensionDf = oldDimensionDf.toDF(newNames: _*)
 
     // If numRecords > parentNumRecords creates the difference to union to the dimension dataframe
     if (numRecords > parentNumRecords) {

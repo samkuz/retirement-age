@@ -24,8 +24,18 @@ class LoadGeneratorTest extends FunSuite {
   val conf  = new SparkConf().setMaster("local[*]")
   val spark = SparkSession.builder().enableHiveSupport().config(conf).getOrCreate()
 
-  ignore("Joining fact table to dimension table results in records > 0") {
-    fail()
+  test("Joining fact table to dimension table results in records > 0") {
+    // Create a fact-table
+    val factCount = 1200000
+    val factDf    = LoadGenerator.generateTable(spark, factCount, 1)
+    // Create a dimension-table
+    val dimensionCount = 750000
+    val dimDf = LoadGenerator.generateTableFromParent(spark, dimensionCount, 1, factCount, factDf)
+
+    // Join fact-table with dimension-table over dimensionId in fact-table and the dimension-table id field
+    val joinDf = factDf.join(dimDf, factDf("dimensionId") === dimDf("id"))
+
+    assertResult(750000)(joinDf.count())
   }
 
   ignore("Joining dimension table to subdimension table results in records > 0") {
@@ -33,11 +43,9 @@ class LoadGeneratorTest extends FunSuite {
   }
 
   test("Create test dataframe with specified payload and record size") {
-    // Initializing the args to pass to LoadGeneratorConfig
-    // fact-count is the important argument here
+    // fact table count: 1,234,564
     val factCount = 1234564
-
-
+    // Create the test dataframe with 1 payload bytes
     val testDf = LoadGenerator.generateTable(spark, factCount, 1)
 
     // Ceiling function can make count off by 1
@@ -48,9 +56,10 @@ class LoadGeneratorTest extends FunSuite {
     // fact table count: 1,200,000
     // dimensional table count: 750,000
 
+    // Create a fact-table
     val factCount = 1200000
     val factDf    = LoadGenerator.generateTable(spark, factCount, 1)
-
+    // Create a dimension-table
     val dimensionCount = 750000
     val dimDf = LoadGenerator.generateTableFromParent(spark, dimensionCount, 1, factCount, factDf)
 
@@ -58,9 +67,9 @@ class LoadGeneratorTest extends FunSuite {
   }
 
   test("Create test dimensional dataframe where dimensional-count > fact-count") {
-    // fact table count: 1,200,000
-    // dimensional table count: 750,000
-    
+    // fact table count: 750,000
+    // dimensional table count: 1,200,000
+
     // Create a fact-table
     val factCount = 750000
     val factDf    = LoadGenerator.generateTable(spark, factCount, 1)
