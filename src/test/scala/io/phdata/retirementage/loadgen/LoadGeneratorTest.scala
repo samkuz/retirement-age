@@ -33,6 +33,10 @@ class LoadGeneratorTest extends FunSuite {
   }
 
   test("Create test dataframe with specified payload and record size") {
+    // Initializing the args to pass to LoadGeneratorConfig
+    // fact-count is the important argument here
+    val factCount = 1234564
+
     val sparkConf = new SparkConf()
     val spark = SparkSession
       .builder()
@@ -42,15 +46,53 @@ class LoadGeneratorTest extends FunSuite {
       .enableHiveSupport()
       .getOrCreate()
 
-    val testDf = LoadGenerator.generateTable(spark, 123456, 1)
+    val testDf = LoadGenerator.generateTable(spark, factCount, 1)
 
     // Ceiling function can make count off by 1
-    // Right now my initDF that I fold onto adds 1 to the numRecords
-    assertResult(123457)(testDf.count())
+    assertResult(1234564)(testDf.count())
   }
 
-  ignore(
-    "Create test dataframe with specified payload, record size, and foreign keys to parent table") {
-    fail()
+  test("Create test dimensional dataframe where dimensional-count < fact-count") {
+    // fact table count: 1,200,000
+    // dimensional table count: 750,000
+
+    val sparkConf = new SparkConf()
+    val spark = SparkSession
+      .builder()
+      .appName("retirement-age")
+      .master("local[3]")
+      .config(sparkConf)
+      .enableHiveSupport()
+      .getOrCreate()
+
+    val factCount = 1200000
+    val factDf    = LoadGenerator.generateTable(spark, factCount, 1)
+
+    val dimensionCount = 750000
+    val dimDf = LoadGenerator.generateTableFromParent(spark, dimensionCount, 1, factCount, factDf)
+
+    assertResult(750000)(dimDf.count())
+  }
+
+  test("Create test dimensional dataframe where dimensional-count > fact-count") {
+    // fact table count: 1,200,000
+    // dimensional table count: 750,000
+
+    val sparkConf = new SparkConf()
+    val spark = SparkSession
+      .builder()
+      .appName("retirement-age")
+      .master("local[3]")
+      .config(sparkConf)
+      .enableHiveSupport()
+      .getOrCreate()
+    // Create a fact-table
+    val factCount = 750000
+    val factDf    = LoadGenerator.generateTable(spark, factCount, 1)
+    // Create a dimension-table
+    val dimensionCount = 1200000
+    val dimDf = LoadGenerator.generateTableFromParent(spark, dimensionCount, 1, factCount, factDf)
+
+    assertResult(1200000)(dimDf.count())
   }
 }

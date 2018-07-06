@@ -25,8 +25,8 @@ import org.apache.spark.sql.functions.lit
 object LoadGenerator {
   def main(args: Array[String]): Unit = {
 
-    val conf  = new LoadGeneratorConfig(args)
-    val sparkConf  = new SparkConf()
+    val conf      = new LoadGeneratorConfig(args)
+    val sparkConf = new SparkConf()
 
     val spark = SparkSession.builder().enableHiveSupport().config(sparkConf).getOrCreate()
     generateTables(spark, conf)
@@ -40,13 +40,18 @@ object LoadGenerator {
       .mode(SaveMode.Overwrite)
       .parquet(s"${conf.databaseName}.${conf.factName.apply()}")
     // generate dimension table
-    val dimensionDf = generateTableFromParent(spark, conf.dimensionCount.apply(), 3, factdf)
+    val dimensionDf =
+      generateTableFromParent(spark, conf.dimensionCount.apply(), 3, conf.factCount.apply(), factdf)
     // write dimension table to disk
     dimensionDf.write
       .mode(SaveMode.Overwrite)
       .parquet(s"${conf.databaseName}.${conf.dimName.apply()}")
     // generate subdimension table
-    val subDimensionDf = generateTableFromParent(spark, conf.subDimensionCount.apply(), 1, dimensionDf)
+    val subDimensionDf = generateTableFromParent(spark,
+                                                 conf.subDimensionCount.apply(),
+                                                 1,
+                                                 conf.dimensionCount.apply(),
+                                                 dimensionDf)
     // write subdimension table to disk
     subDimensionDf.write
       .mode(SaveMode.Overwrite)
@@ -65,16 +70,18 @@ object LoadGenerator {
       * Create the following schema:
       *   -- id: String (nullable = false)
       *   -- payload: String (nullable = false)
+      *   -- dimensionId: String (nullable = false)
       *   -- date: String (nullabe = false)
       */
     val schema = StructType(StructField("id", StringType, false) :: Nil)
       .add(StructField("payload", StringType, false))
+      .add(StructField("dimensionId", StringType, false))
       .add(StructField("date", StringType, false))
     // Create a string with specified bytes
     val byteString = "a" * payloadBytes
 
     // Num of records for each partition
-    val recordNum = 50000
+    val recordNum        = 1000000
     val numRecordsDouble = numRecords.toDouble
 
     // Calculate the number of unions to be made, and the records in each partition
@@ -85,20 +92,19 @@ object LoadGenerator {
     val alldata = (1 to numPartitions).map(x => {
       val rawdata = (1 to partitionRecords)
       val newdata =
-        rawdata.map(x => Seq(UUID.randomUUID().toString(), byteString, tempDateGenerator()))
+        rawdata.map(
+          x =>
+            Seq(UUID.randomUUID().toString(),
+                byteString,
+                UUID.randomUUID().toString(),
+                tempDateGenerator()))
       val rows = newdata.map(x => Row(x: _*))
       val rdd  = spark.sparkContext.makeRDD(rows)
       spark.createDataFrame(rdd, schema)
     })
 
-    // Create dataFrame to fold onto named initDF
-    val dummyData = Seq(Seq(UUID.randomUUID().toString(), byteString, tempDateGenerator()))
-    val rows      = dummyData.map(x => Row(x: _*))
-    val rdd       = spark.sparkContext.makeRDD(rows)
-    var initDF    = spark.createDataFrame(rdd, schema)
-
     // Union the sequence of dataframes onto initDF
-    alldata.foldLeft(initDF)((l, r) => l.union(r))
+    alldata.reduce((l, r) => l.union(r))
   }
 
   // Create date data with 2016-12-25, 2017-12-25, 2018-12-25
@@ -122,12 +128,28 @@ object LoadGenerator {
   def generateTableFromParent(spark: SparkSession,
                               numRecords: Int,
                               payloadBytes: Int,
+                              parentNumRecords: Int,
                               parent: DataFrame): DataFrame = {
+
     val byteString = "a" * payloadBytes
 
-    // Can the numRecords for the child be larger than the parent?
-    // Should the foreign key be the parent's UUID created earlier?
-    parent.select("id").limit(numRecords).withColumn("payload", lit(byteString))
+    // Create a dimension dataframe
+    val dimensionDf = parent
+      .select("dimensionId")
+      .limit(numRecords)
+      .withColumn("payload", lit(byteString))
+      .withColumn("subdimensionId", lit(UUID.randomUUID().toString()))
+      .withColumn("date", lit("2222-22-22"))
+
+    // If numRecords > parentNumRecords creates the difference to union to the dimension dataframe
+    if (numRecords > parentNumRecords) {
+      val newRowsnum = numRecords - parentNumRecords
+      val tempDf     = generateTable(spark, newRowsnum, payloadBytes)
+
+      dimensionDf.union(tempDf)
+    } else {
+      dimensionDf
+    }
 
   }
 }
