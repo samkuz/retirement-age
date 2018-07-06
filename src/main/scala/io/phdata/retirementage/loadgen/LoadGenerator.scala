@@ -1,21 +1,34 @@
-/* Copyright 2018 phData Inc. */
+/*
+ * Copyright 2018 phData Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package io.phdata.retirementage.loadgen
 
 import java.util.UUID
-
-import org.apache.spark.SparkContext
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SaveMode, SparkSession}
-
-import scala.collection.mutable.ListBuffer
 import org.apache.spark.sql.functions.lit
 
 object LoadGenerator {
   def main(args: Array[String]): Unit = {
 
     val conf  = new LoadGeneratorConfig(args)
-    val spark = new SparkSession()
+    val sparkConf  = new SparkConf()
+
+    val spark = SparkSession.builder().enableHiveSupport().config(sparkConf).getOrCreate()
     generateTables(spark, conf)
   }
 
@@ -27,15 +40,15 @@ object LoadGenerator {
       .mode(SaveMode.Overwrite)
       .parquet(s"${conf.databaseName}.${conf.factName.apply()}")
     // generate dimension table
-    val dimdf = generateTableFromParent(spark, conf.dimensionCount.apply(), 3, factdf)
+    val dimensionDf = generateTableFromParent(spark, conf.dimensionCount.apply(), 3, factdf)
     // write dimension table to disk
-    dimdf.write
+    dimensionDf.write
       .mode(SaveMode.Overwrite)
       .parquet(s"${conf.databaseName}.${conf.dimName.apply()}")
     // generate subdimension table
-    val sdf = generateTableFromParent(spark, conf.subDimensionCount.apply(), 1, dimdf)
+    val subDimensionDf = generateTableFromParent(spark, conf.subDimensionCount.apply(), 1, dimensionDf)
     // write subdimension table to disk
-    sdf.write
+    subDimensionDf.write
       .mode(SaveMode.Overwrite)
       .parquet(s"${conf.databaseName}.${conf.subName.apply()}")
   }
@@ -61,11 +74,12 @@ object LoadGenerator {
     val byteString = "a" * payloadBytes
 
     // Num of records for each partition
-    val recordNum = 5000
+    val recordNum = 50000
+    val numRecordsDouble = numRecords.toDouble
 
     // Calculate the number of unions to be made, and the records in each partition
-    val numPartitions    = math.ceil(numRecords / recordNum).toInt
-    val partitionRecords = math.ceil(numRecords / numPartitions).toInt
+    val numPartitions    = math.ceil(numRecordsDouble / recordNum).toInt
+    val partitionRecords = math.ceil(numRecordsDouble / numPartitions).toInt
 
     // Create a sequence of dataframes
     val alldata = (1 to numPartitions).map(x => {
@@ -78,17 +92,13 @@ object LoadGenerator {
     })
 
     // Create dataFrame to fold onto named initDF
-    val dummyData = Seq(UUID.randomUUID().toString(), byteString, tempDateGenerator())
+    val dummyData = Seq(Seq(UUID.randomUUID().toString(), byteString, tempDateGenerator()))
     val rows      = dummyData.map(x => Row(x: _*))
     val rdd       = spark.sparkContext.makeRDD(rows)
     var initDF    = spark.createDataFrame(rdd, schema)
 
     // Union the sequence of dataframes onto initDF
-    alldata.foldLeft(initDF)(tempUnion)
-  }
-
-  def tempUnion(a: DataFrame, b: DataFrame): DataFrame = {
-    a.union(b)
+    alldata.foldLeft(initDF)((l, r) => l.union(r))
   }
 
   // Create date data with 2016-12-25, 2017-12-25, 2018-12-25
