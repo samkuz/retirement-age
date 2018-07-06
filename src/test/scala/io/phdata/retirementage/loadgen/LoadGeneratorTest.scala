@@ -22,7 +22,7 @@ import org.scalatest.FunSuite
 
 class LoadGeneratorTest extends FunSuite {
   val conf  = new SparkConf().setMaster("local[*]")
-  val spark = SparkSession.builder().enableHiveSupport().config(conf)
+  val spark = SparkSession.builder().enableHiveSupport().config(conf).getOrCreate()
 
   ignore("Joining fact table to dimension table results in records > 0") {
     fail()
@@ -37,14 +37,6 @@ class LoadGeneratorTest extends FunSuite {
     // fact-count is the important argument here
     val factCount = 1234564
 
-    val sparkConf = new SparkConf()
-    val spark = SparkSession
-      .builder()
-      .appName("retirement-age")
-      .master("local[3]")
-      .config(sparkConf)
-      .enableHiveSupport()
-      .getOrCreate()
 
     val testDf = LoadGenerator.generateTable(spark, factCount, 1)
 
@@ -55,15 +47,6 @@ class LoadGeneratorTest extends FunSuite {
   test("Create test dimensional dataframe where dimensional-count < fact-count") {
     // fact table count: 1,200,000
     // dimensional table count: 750,000
-
-    val sparkConf = new SparkConf()
-    val spark = SparkSession
-      .builder()
-      .appName("retirement-age")
-      .master("local[3]")
-      .config(sparkConf)
-      .enableHiveSupport()
-      .getOrCreate()
 
     val factCount = 1200000
     val factDf    = LoadGenerator.generateTable(spark, factCount, 1)
@@ -77,15 +60,7 @@ class LoadGeneratorTest extends FunSuite {
   test("Create test dimensional dataframe where dimensional-count > fact-count") {
     // fact table count: 1,200,000
     // dimensional table count: 750,000
-
-    val sparkConf = new SparkConf()
-    val spark = SparkSession
-      .builder()
-      .appName("retirement-age")
-      .master("local[3]")
-      .config(sparkConf)
-      .enableHiveSupport()
-      .getOrCreate()
+    
     // Create a fact-table
     val factCount = 750000
     val factDf    = LoadGenerator.generateTable(spark, factCount, 1)
