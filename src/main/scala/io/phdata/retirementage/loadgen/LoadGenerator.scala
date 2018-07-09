@@ -24,53 +24,58 @@ import org.apache.spark.sql.functions.lit
 
 object LoadGenerator {
   def main(args: Array[String]): Unit = {
-
-    //val conf      = new LoadGeneratorConfig(args)
-    val sparkConf = new SparkConf()
+    val conf = new LoadGeneratorConfig(args)
 
     val spark = SparkSession
       .builder()
       .enableHiveSupport()
       .appName("load-generator")
-      .config(sparkConf)
+      .config("spark.sql.parquet.compression.codec", "snappy")
+      .config("spark.sql.parquet.binaryAsString", "true")
+      .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .getOrCreate()
+
     // Temporary testing features
-    val tempdf = generateTable(spark, 1000000, 1)
+    /**
+      * Initialize spark job by
+      * spark2-submit --deploy-mode client --master yarn
+      * --class io.phdata.retirementage.loadgen.LoadGenerator
+      * <path to jar> --fact-count <#> --dimension-count 0 --subdimension-count 0 --database-name default
+      */
+      
+    val tempdf = generateTable(spark, conf.factCount(), 1)
 
-//    val databaseName = conf.databaseName.apply()
-//    val tableName    = conf.factName.apply()
-//    tempdf.write.mode(SaveMode.Overwrite).parquet(s"${databaseName}.${tableName}")
+    val factname = "factloadtest"
 
-    // Quickly test factloadTest
-    tempdf.write.mode(SaveMode.Overwrite).parquet("raw_intern_workspace.factloadTest")
+    tempdf.write.mode("overwrite").saveAsTable(s"$factname")
 
     //generateTables(spark, conf)
   }
 
   def generateTables(spark: SparkSession, conf: LoadGeneratorConfig): Unit = {
     // generate fact table
-    val factdf = generateTable(spark, conf.factCount.apply(), 1)
+    val factdf = generateTable(spark, conf.factCount(), 1)
     // write fact table to disk
     factdf.write
       .mode(SaveMode.Overwrite)
-      .parquet(s"${conf.databaseName}.${conf.factName.apply()}")
+      .parquet(s"${conf.databaseName}.${conf.factName()}")
     // generate dimension table
     val dimensionDf =
-      generateTableFromParent(spark, conf.dimensionCount.apply(), 3, conf.factCount.apply(), factdf)
+      generateTableFromParent(spark, conf.dimensionCount.apply(), 3, conf.factCount(), factdf)
     // write dimension table to disk
     dimensionDf.write
       .mode(SaveMode.Overwrite)
-      .parquet(s"${conf.databaseName}.${conf.dimName.apply()}")
+      .parquet(s"${conf.databaseName}.${conf.dimName()}")
     // generate subdimension table
     val subDimensionDf = generateTableFromParent(spark,
-                                                 conf.subDimensionCount.apply(),
+                                                 conf.subDimensionCount(),
                                                  1,
-                                                 conf.dimensionCount.apply(),
+                                                 conf.dimensionCount(),
                                                  dimensionDf)
     // write subdimension table to disk
     subDimensionDf.write
       .mode(SaveMode.Overwrite)
-      .parquet(s"${conf.databaseName}.${conf.subName.apply()}")
+      .parquet(s"${conf.databaseName}.${conf.subName()}")
   }
 
   /**
@@ -86,17 +91,17 @@ object LoadGenerator {
       *   -- id: String (nullable = false)
       *   -- payload: String (nullable = false)
       *   -- dimensionId: String (nullable = false)
-      *   -- date: String (nullabe = false)
+      *   -- expirationDate: String (nullabe = false)
       */
     val schema = StructType(StructField("id", StringType, false) :: Nil)
       .add(StructField("payload", StringType, false))
       .add(StructField("dimensionId", StringType, false))
-      .add(StructField("date", StringType, false))
+      .add(StructField("expirationDate", StringType, false))
     // Create a string with specified bytes
     val byteString = "a" * payloadBytes
 
     // Num of records for each partition
-    val recordNum        = 1000000
+    val recordNum        = 10000
     val numRecordsDouble = numRecords.toDouble
 
     // Calculate the number of unions to be made, and the records in each partition
@@ -148,15 +153,15 @@ object LoadGenerator {
 
     val byteString = "a" * payloadBytes
 
-    // Create a temporary dimension dataframe with the incorrect colum nmaes
+    // Create a temporary dimension dataframe with the incorrect column names
     val oldDimensionDf = parent
       .select("dimensionId")
       .limit(numRecords)
       .withColumn("payload", lit(byteString))
       .withColumn("subdimensionId", lit(UUID.randomUUID().toString()))
-      .withColumn("date", lit("2222-22-22"))
+      .withColumn("expirationDate", lit("2222-22-22"))
     // Correct column names
-    val newNames = Seq("id", "payload", "dimensionId", "date")
+    val newNames = Seq("id", "payload", "dimensionId", "expirationDate")
     // Create a dimension DF with correct column names
     val dimensionDf = oldDimensionDf.toDF(newNames: _*)
 
