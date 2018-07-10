@@ -24,9 +24,9 @@ class LoadGeneratorConfig(args: Array[String]) extends ScallopConf(args) {
   val subDimensionCount = opt[Int]("subdimension-count", required = true, default = Some(0))
   val databaseName      = opt[String]("database-name", required = true, default = Some("default"))
 
-  val factName = opt[String]("fact-name", required = false, default = Some("factLoadTest"))
-  val dimName  = opt[String]("dim-name", required = false, default = Some("dimLoadTest"))
-  val subName  = opt[String]("subdim-name", required = false, default = Some("subLoadTest"))
+  val factName = opt[String]("fact-name", required = false, default = Some("factloadtest"))
+  val dimName  = opt[String]("dim-name", required = false, default = Some("dimloadtest"))
+  val subName  = opt[String]("subdim-name", required = false, default = Some("subloadtest"))
 
   verify()
 }

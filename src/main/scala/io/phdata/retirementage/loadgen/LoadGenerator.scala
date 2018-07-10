@@ -35,21 +35,15 @@ object LoadGenerator {
       .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .getOrCreate()
 
-    // Temporary testing features
     /**
       * Initialize spark job by
       * spark2-submit --deploy-mode client --master yarn
       * --class io.phdata.retirementage.loadgen.LoadGenerator
-      * <path to jar> --fact-count <#> --dimension-count 0 --subdimension-count 0 --database-name default
+      * <path to jar> --fact-count <#> --dimension-count <#> --subdimension-count <#> --database-name <String>
+      *   (optional) --fact-name <name> --dim-name <name> --subdim-name <name>
       */
-      
-    val tempdf = generateTable(spark, conf.factCount(), 1)
 
-    val factname = "factloadtest"
-
-    tempdf.write.mode("overwrite").saveAsTable(s"$factname")
-
-    //generateTables(spark, conf)
+    generateTables(spark, conf)
   }
 
   def generateTables(spark: SparkSession, conf: LoadGeneratorConfig): Unit = {
@@ -58,14 +52,14 @@ object LoadGenerator {
     // write fact table to disk
     factdf.write
       .mode(SaveMode.Overwrite)
-      .parquet(s"${conf.databaseName}.${conf.factName()}")
+      .saveAsTable(s"${conf.databaseName()}.${conf.factName()}")
     // generate dimension table
     val dimensionDf =
-      generateTableFromParent(spark, conf.dimensionCount.apply(), 3, conf.factCount(), factdf)
+      generateTableFromParent(spark, conf.dimensionCount(), 3, conf.factCount(), factdf)
     // write dimension table to disk
     dimensionDf.write
       .mode(SaveMode.Overwrite)
-      .parquet(s"${conf.databaseName}.${conf.dimName()}")
+      .saveAsTable(s"${conf.databaseName()}.${conf.dimName()}")
     // generate subdimension table
     val subDimensionDf = generateTableFromParent(spark,
                                                  conf.subDimensionCount(),
@@ -75,7 +69,7 @@ object LoadGenerator {
     // write subdimension table to disk
     subDimensionDf.write
       .mode(SaveMode.Overwrite)
-      .parquet(s"${conf.databaseName}.${conf.subName()}")
+      .saveAsTable(s"${conf.databaseName()}.${conf.subName()}")
   }
 
   /**
