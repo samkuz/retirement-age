@@ -17,10 +17,14 @@
 package io.phdata.retirementage.loadgen
 
 import java.util.UUID
+
+import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SaveMode, SparkSession}
 import org.apache.spark.sql.functions.lit
+
+import scala.collection.immutable
 
 object LoadGenerator {
   def main(args: Array[String]): Unit = {
@@ -42,34 +46,41 @@ object LoadGenerator {
       * <path to jar> --fact-count <#> --dimension-count <#> --subdimension-count <#> --database-name <String>
       *   (optional) --fact-name <name> --dim-name <name> --subdim-name <name>
       */
-
     generateTables(spark, conf)
   }
 
   def generateTables(spark: SparkSession, conf: LoadGeneratorConfig): Unit = {
-    // generate fact table
-    val factdf = generateTable(spark, conf.factCount(), 1)
-    // write fact table to disk
-    factdf.write
-      .mode(SaveMode.Overwrite)
-      .saveAsTable(s"${conf.databaseName()}.${conf.factName()}")
+    // test stuff
+    val coalNum = conf.factCount() / 250000
+
+    // generate fact RDD
+    val factRDD = generateTable(spark, conf.factCount(), 1)
+    // write fact RDD
+
+
+//    // generate fact table
+//    val factdf = generateTable(spark, conf.factCount(), 1)
+//    // write fact table to disk
+//    factdf.write
+//      .mode(SaveMode.Overwrite)
+//      .saveAsTable(s"${conf.databaseName()}.${conf.factName()}")
     // generate dimension table
-    val dimensionDf =
-      generateTableFromParent(spark, conf.dimensionCount(), 3, conf.factCount(), factdf)
-    // write dimension table to disk
-    dimensionDf.write
-      .mode(SaveMode.Overwrite)
-      .saveAsTable(s"${conf.databaseName()}.${conf.dimName()}")
-    // generate subdimension table
-    val subDimensionDf = generateTableFromParent(spark,
-                                                 conf.subDimensionCount(),
-                                                 1,
-                                                 conf.dimensionCount(),
-                                                 dimensionDf)
-    // write subdimension table to disk
-    subDimensionDf.write
-      .mode(SaveMode.Overwrite)
-      .saveAsTable(s"${conf.databaseName()}.${conf.subName()}")
+//    val dimensionDf =
+//      generateTableFromParent(spark, conf.dimensionCount(), 3, conf.factCount(), factdf)
+//    // write dimension table to disk
+//    dimensionDf.write
+//      .mode(SaveMode.Overwrite)
+//      .saveAsTable(s"${conf.databaseName()}.${conf.dimName()}")
+//    // generate subdimension table
+//    val subDimensionDf = generateTableFromParent(spark,
+//                                                 conf.subDimensionCount(),
+//                                                 1,
+//                                                 conf.dimensionCount(),
+//                                                 dimensionDf)
+//    // write subdimension table to disk
+//    subDimensionDf.write
+//      .mode(SaveMode.Overwrite)
+//      .saveAsTable(s"${conf.databaseName()}.${conf.subName()}")
   }
 
   /**
@@ -78,7 +89,7 @@ object LoadGenerator {
     * @param payloadBytes Payload size
     * @return The test dataframe
     */
-  def generateTable(spark: SparkSession, numRecords: Int, payloadBytes: Int): DataFrame = {
+  def generateTable(spark: SparkSession, numRecords: Int, payloadBytes: Int) = {
 
     /**
       * Create the following schema:
@@ -95,8 +106,15 @@ object LoadGenerator {
     val byteString = "a" * payloadBytes
 
     // Num of records for each partition
-    val recordNum        = 10000
-    val numRecordsDouble = numRecords.toDouble
+    // multiply recordsPerPartition by cpu cores
+    // makes testing fail because no executor cores
+    val recordsPerPartition = 15000
+
+    // Calculate the number of unions to be made, and the records in each partition
+    val numPartitions    = math.ceil(numRecords.toDouble / recordsPerPartition).toInt
+    val partitionRecords = math.ceil(numRecords.toDouble / numPartitions).toInt
+
+    // Create a sequence of dataframes
 
     // Calculate the number of unions to be made, and the records in each partition
     val numPartitions    = math.ceil(numRecordsDouble / recordNum).toInt
@@ -109,16 +127,32 @@ object LoadGenerator {
         rawdata.map(
           x =>
             Seq(UUID.randomUUID().toString(),
-                byteString,
-                UUID.randomUUID().toString(),
-                tempDateGenerator()))
+              byteString,
+              UUID.randomUUID().toString(),
+              tempDateGenerator()))
       val rows = newdata.map(x => Row(x: _*))
       val rdd  = spark.sparkContext.makeRDD(rows)
-      spark.createDataFrame(rdd, schema)
+      val df = spark.createDataFrame(rdd, schema)
+      val temp = df.count()
+      df
     })
 
     // Union the sequence of dataframes onto initDF
     alldata.reduce((l, r) => l.union(r))
+
+
+//
+//    // Use RDD
+//    val newdata = Range(1, 10000)
+//    val rdd     = spark.sparkContext.makeRDD(newdata)
+//
+//    val dfs: Seq[RDD[Int]] = Range(1, numPartitions).map(x => rdd)
+//
+//    // Union the Sequence of DataFrames onto finalTable
+//    val finalTable = dfs.reduce((l, r) => l.union(r))
+
+    // Return
+//    val test: RDD[(String, String, String, String)] = finalTable.map(x => (UUID.randomUUID().toString, byteString, UUID.randomUUID().toString, tempDateGenerator()))
   }
 
   // Create date data with 2016-12-25, 2017-12-25, 2018-12-25

@@ -26,16 +26,16 @@ class LoadGeneratorTest extends FunSuite {
 
   test("Joining fact table to dimension table results in records > 0") {
     // Create a fact-table
-    val factCount = 1200000
+    val factCount = 5000
     val factDf    = LoadGenerator.generateTable(spark, factCount, 1)
     // Create a dimension-table
-    val dimensionCount = 750000
+    val dimensionCount = 2000
     val dimDf          = LoadGenerator.generateTableFromParent(spark, dimensionCount, 1, factCount, factDf)
 
     // Join fact-table with dimension-table over dimensionId in fact-table and the dimension-table id field
     val joinDf = factDf.join(dimDf, factDf("dimensionId") === dimDf("id"))
 
-    assertResult(750000)(joinDf.count())
+    assertResult(2000)(joinDf.count())
   }
 
   ignore("Joining dimension table to subdimension table results in records > 0") {
@@ -43,40 +43,40 @@ class LoadGeneratorTest extends FunSuite {
   }
 
   test("Create test dataframe with specified payload and record size") {
-    // fact table count: 1,234,564
-    val factCount = 1234564
+    // fact table count: 4,400
+    val factCount = 4400
     // Create the test dataframe with 1 payload bytes
     val testDf = LoadGenerator.generateTable(spark, factCount, 1)
 
-    // Ceiling function can make count off by 1
-    assertResult(1234564)(testDf.count())
+    // Ceiling function can make count off
+    assertResult(4400)(testDf.count())
   }
 
   test("Create test dimensional dataframe where dimensional-count < fact-count") {
-    // fact table count: 1,200,000
-    // dimensional table count: 750,000
+    // fact table count: 2,200
+    // dimensional table count: 1,100
 
     // Create a fact-table
-    val factCount = 1200000
+    val factCount = 2200
     val factDf    = LoadGenerator.generateTable(spark, factCount, 1)
     // Create a dimension-table
-    val dimensionCount = 750000
+    val dimensionCount = 1100
     val dimDf          = LoadGenerator.generateTableFromParent(spark, dimensionCount, 1, factCount, factDf)
 
-    assertResult(750000)(dimDf.count())
+    assertResult(1100)(dimDf.count())
   }
 
   test("Create test dimensional dataframe where dimensional-count > fact-count") {
-    // fact table count: 750,000
-    // dimensional table count: 1,200,000
+    // fact table count: 2,200
+    // dimensional table count: 3,300
 
     // Create a fact-table
-    val factCount = 750000
+    val factCount = 2000
     val factDf    = LoadGenerator.generateTable(spark, factCount, 1)
     // Create a dimension-table
-    val dimensionCount = 1200000
+    val dimensionCount = 4000
     val dimDf          = LoadGenerator.generateTableFromParent(spark, dimensionCount, 1, factCount, factDf)
 
-    assertResult(1200000)(dimDf.count())
+    assertResult(4000)(dimDf.count())
   }
 }
