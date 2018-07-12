@@ -76,7 +76,7 @@ object LoadGenerator {
   }
 
   // Creating a case class to use for generateTable
-  case class LoadGenTemp(id: String, payload: String, dimensionId: String, expirationdate: String)
+  case class LoadGenTemp(id: String, payload: String, dimensionid: String, expirationdate: String)
 
   /**
     * Generates a test dataframe
@@ -95,7 +95,7 @@ object LoadGenerator {
       */
     val schema = StructType(StructField("id", StringType, false) :: Nil)
       .add(StructField("payload", StringType, false))
-      .add(StructField("dimensionId", StringType, false))
+      .add(StructField("dimensionid", StringType, false))
       .add(StructField("expirationDate", StringType, false))
     // Create a string with specified bytes
     val byteString = "a" * payloadBytes
@@ -127,16 +127,19 @@ object LoadGenerator {
     val tempDs: Dataset[LoadGenTemp] = duplicateDf.as[LoadGenTemp]
 
     // Create random data
-    val finalDf: Dataset[LoadGenTemp] = tempDs.map {
-      case change if true =>
-        change.copy(id = UUID.randomUUID().toString)
-        change.copy(dimensionId = UUID.randomUUID().toString)
-        change.copy(expirationdate = tempDateGenerator())
+    val idRandomDs: Dataset[LoadGenTemp] = tempDs.map {
+      case change => change.copy(id = UUID.randomUUID().toString)
+    }
+    val dimRandomDs: Dataset[LoadGenTemp] = idRandomDs.map {
+      case change => change.copy(dimensionid = UUID.randomUUID().toString)
+    }
+    val finalDs = dimRandomDs.map {
+      case change => change.copy(expirationdate = tempDateGenerator())
     }
 
     //Convert back to a DF and return
     // Return
-    finalDf.toDF()
+    finalDs.toDF()
   }
 
   // Create date data with 2016-12-25, 2017-12-25, 2018-12-25
@@ -167,13 +170,13 @@ object LoadGenerator {
 
     // Create a temporary dimension dataframe with the incorrect column names
     val oldDimensionDf = parent
-      .select("dimensionId")
+      .select("dimensionid")
       .limit(numRecords)
       .withColumn("payload", lit(byteString))
-      .withColumn("subdimensionId", lit(UUID.randomUUID().toString()))
+      .withColumn("subdimensionid", lit(UUID.randomUUID().toString()))
       .withColumn("expirationDate", lit("2222-22-22"))
     // Correct column names
-    val newNames = Seq("id", "payload", "dimensionId", "expirationDate")
+    val newNames = Seq("id", "payload", "dimensionid", "expirationDate")
     // Create a dimension DF with correct column names
     val dimensionDf = oldDimensionDf.toDF(newNames: _*)
 
