@@ -103,19 +103,19 @@ object LoadGenerator {
     val byteString = "a" * payloadBytes
 
     // Maximum number of records per split DataFrame
-    val maximumDfRecords = 100000
+    val maximumDfRecords = 10000
 
     // Calculating the number of split DataFrames to create and the records per split DataFrame
-    val numDataFrames       = math.ceil(numRecords.toDouble / maximumDfRecords).toInt
-    val recordsPerDf = math.ceil(numRecords.toDouble / numDataFrames).toInt
+    val numDataFrames = math.ceil(numRecords.toDouble / maximumDfRecords).toInt
+    val recordsPerDf  = math.ceil(numRecords.toDouble / numDataFrames).toInt
 
     //Creating DataFrame with duplicated data
-    val newdata = Range(1, recordsPerDf).map(x => Seq("", "", "", ""))
+    val newdata = Range(0, recordsPerDf).map(x => Seq("a", "b", "c", "d"))
     val rows    = newdata.map(x => Row(x: _*))
     val rdd     = spark.sparkContext.makeRDD(rows)
     val df      = spark.createDataFrame(rdd, schema)
 
-    val dfs = Range(1, numDataFrames).map(x => df)
+    val dfs = Range(0, numDataFrames).map(x => df)
 
     // Union the Sequence of DataFrames onto finalTable
     val duplicateDf: DataFrame = dfs.reduce((l, r) => l.union(r))
@@ -173,6 +173,7 @@ object LoadGenerator {
     val newNames = Seq("id", "payload", "dimensionid", "expirationDate")
     // Create a dimension DF with correct column names
     val dimensionDf = oldDimensionDf.toDF(newNames: _*)
+    println("Dimension df count: " + dimensionDf.count())
 
     // If numRecords > parentNumRecords creates the difference to union to the dimension dataframe
     if (numRecords > parentNumRecords) {
