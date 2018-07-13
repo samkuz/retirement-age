@@ -24,22 +24,41 @@ class LoadGeneratorTest extends FunSuite {
   val conf  = new SparkConf().setMaster("local[*]")
   val spark = SparkSession.builder().enableHiveSupport().config(conf).getOrCreate()
 
-  ignore("Joining fact table to dimension table results in records > 0") {
+  test("Joining fact table to dimension table results in records > 0") {
+    // Add a random seed for testing?
     // Create a fact-table
-    val factCount = 50000
-    val factDf    = LoadGenerator.generateTable(spark, factCount, 1)
+    val factCount = 10000
+    val factDf    = LoadGenerator.generateTable(spark, factCount, 1).cache()
+
     // Create a dimension-table
-    val dimensionCount = 20000
+    val dimensionCount = 5000
     val dimDf          = LoadGenerator.generateTableFromParent(spark, dimensionCount, 1, factCount, factDf)
 
     // Join fact-table with dimension-table over dimensionid in fact-table and the dimension-table id field
     val joinDf = factDf.join(dimDf, dimDf("id") === factDf("dimensionid"))
 
-    assertResult(20000)(joinDf.count())
+    assertResult(5000)(joinDf.count())
   }
 
-  ignore("Joining dimension table to subdimension table results in records > 0") {
-    fail()
+  test("Joining dimension table to subdimension table results in records > 0") {
+    // Create a fact-table
+    val factCount = 10000
+    val factDf    = LoadGenerator.generateTable(spark, factCount, 1).cache()
+
+    // Create a dimension-table
+    val dimensionCount = 5000
+    val dimDf =
+      LoadGenerator.generateTableFromParent(spark, dimensionCount, 1, factCount, factDf).cache()
+
+    // Create a sub-dimension-table
+    val subdimensionCount = 2000
+    val subDf =
+      LoadGenerator.generateTableFromParent(spark, subdimensionCount, 1, dimensionCount, dimDf)
+
+    // Join fact-table with dimension-table over dimensionid in fact-table and the dimension-table id field
+    val joinDf = dimDf.join(subDf, subDf("id") === dimDf("dimensionid"))
+
+    assertResult(2000)(joinDf.count())
   }
 
   test("Create test dataframe with specified payload and record size") {

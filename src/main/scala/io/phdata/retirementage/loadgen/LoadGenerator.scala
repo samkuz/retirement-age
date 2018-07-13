@@ -60,7 +60,7 @@ object LoadGenerator {
       generateTableFromParent(spark, conf.dimensionCount(), 3, conf.factCount(), factdf)
 
     dimensionDf
-      .coalesce(25)
+      .coalesce(50)
       .write
       .mode(SaveMode.Overwrite)
       .saveAsTable(s"${conf.databaseName()}.${conf.dimName()}")
@@ -72,7 +72,7 @@ object LoadGenerator {
                                                  dimensionDf)
 
     subDimensionDf
-      .coalesce(20)
+      .coalesce(50)
       .write
       .mode(SaveMode.Overwrite)
       .saveAsTable(s"${conf.databaseName()}.${conf.subName()}")
@@ -103,7 +103,7 @@ object LoadGenerator {
     val byteString = "a" * payloadBytes
 
     // Maximum number of records per split DataFrame
-    val maximumDfRecords = 10000
+    val maximumDfRecords = 100000
 
     // Calculating the number of split DataFrames to create and the records per split DataFrame
     val numDataFrames = math.ceil(numRecords.toDouble / maximumDfRecords).toInt
@@ -172,17 +172,27 @@ object LoadGenerator {
     // Correct column names
     val newNames = Seq("id", "payload", "dimensionid", "expirationDate")
     // Create a dimension DF with correct column names
-    val dimensionDf = oldDimensionDf.toDF(newNames: _*)
-    println("Dimension df count: " + dimensionDf.count())
+    val correctSchemaDf = oldDimensionDf.toDF(newNames: _*)
+
+    // Create random dimensionid UUID's
+    import spark.implicits._
+    // Create temporary dataset to make changes on
+    val tempDs: Dataset[LoadGenTemp] = correctSchemaDf.as[LoadGenTemp]
+    // Create final DataSet with random dimensionids
+    val finalDs: Dataset[LoadGenTemp] = tempDs.map {
+      case change =>
+        change.copy(dimensionid = UUID.randomUUID().toString)
+    }
+    val finalDf = finalDs.toDF()
 
     // If numRecords > parentNumRecords creates the difference to union to the dimension dataframe
     if (numRecords > parentNumRecords) {
       val newRowsNum = numRecords - parentNumRecords
       val tempDf     = generateTable(spark, newRowsNum, payloadBytes)
 
-      dimensionDf.union(tempDf)
+      finalDf.union(tempDf)
     } else {
-      dimensionDf
+      finalDf
     }
 
   }
