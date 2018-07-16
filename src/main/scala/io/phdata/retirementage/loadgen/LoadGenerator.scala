@@ -17,9 +17,11 @@
 package io.phdata.retirementage.loadgen
 
 import java.util.UUID
+
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql._
 import org.apache.spark.sql.functions.lit
+import org.apache.spark.storage.StorageLevel
 
 object LoadGenerator {
   def main(args: Array[String]): Unit = {
@@ -47,7 +49,7 @@ object LoadGenerator {
 
   def generateTables(spark: SparkSession, conf: LoadGeneratorConfig): Unit = {
     // generate fact table
-    val factdf = generateTable(spark, conf.factCount(), 1)
+    val factdf = generateTable(spark, conf.factCount(), 1).persist(StorageLevel.MEMORY_AND_DISK)
 
     factdf
       .coalesce(50)
@@ -57,22 +59,21 @@ object LoadGenerator {
 
     // generate dimension table
     val dimensionDf =
-      generateTableFromParent(spark, conf.dimensionCount(), 3, conf.factCount(), factdf)
+      generateTableFromParent(spark, conf.dimensionCount(), 2, conf.factCount(), factdf)
+        .persist(StorageLevel.MEMORY_AND_DISK)
 
     dimensionDf
-      .coalesce(50)
       .write
       .mode(SaveMode.Overwrite)
       .saveAsTable(s"${conf.databaseName()}.${conf.dimName()}")
     // generate subdimension table
     val subDimensionDf = generateTableFromParent(spark,
                                                  conf.subDimensionCount(),
-                                                 1,
+                                                 3,
                                                  conf.dimensionCount(),
-                                                 dimensionDf)
+                                                 dimensionDf).persist(StorageLevel.MEMORY_AND_DISK)
 
     subDimensionDf
-      .coalesce(50)
       .write
       .mode(SaveMode.Overwrite)
       .saveAsTable(s"${conf.databaseName()}.${conf.subName()}")
