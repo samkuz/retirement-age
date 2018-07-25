@@ -28,12 +28,12 @@ import com.databricks.spark.avro._
   */
 trait HdfsStorage extends StorageActions with LazyLogging {
 
-  override def persistFrame(computeCountsFlag: Boolean,
-                            dryRun: Boolean,
-                            qualifiedTableName: String,
-                            storageType: String,
-                            currentFrame: DataFrame,
-                            filteredFrame: DataFrame) = {
+  override def removeRecords(computeCountsFlag: Boolean,
+                             dryRun: Boolean,
+                             qualifiedTableName: String,
+                             storageType: String,
+                             currentFrame: DataFrame,
+                             filteredFrame: DataFrame) = {
     try {
       val originalDatasetLocation = getCurrentDatasetLocation(qualifiedTableName)
       val newDatasetLocation      = getNewDatasetLocation(qualifiedTableName)

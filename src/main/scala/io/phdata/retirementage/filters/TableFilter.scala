@@ -21,6 +21,7 @@ import io.phdata.retirementage.SparkDriver.spark
 import io.phdata.retirementage.domain._
 import io.phdata.retirementage.storage.{HdfsStorage, KuduStorage, StorageActions}
 import org.apache.spark.sql.DataFrame
+import org.apache.kudu.spark.kudu._
 
 /**
   * Parent abstract class for a dataset filter. A dataset filter can
@@ -33,6 +34,20 @@ abstract class TableFilter(database: Database, table: Table)
     with LazyLogging {
   lazy val currentFrame  = spark.read.table(qualifiedTableName).cache()
   val qualifiedTableName = s"${database.name}.${table.name}"
+
+  def getCurrentFrame(storageType: String): DataFrame = {
+    storageType match {
+      case "parquet" => spark.read.table(qualifiedTableName).cache()
+      case "avro"    => spark.read.table(qualifiedTableName).cache()
+      case "kudu" =>
+        spark.sqlContext.read
+          .options(Map("kudu.master" -> "localhost:7051",
+                       "kudu.table"  -> qualifiedTableName))
+          .kudu
+          .cache()
+      case _ => throw new NotImplementedError()
+    }
+  }
 
   /**
     * Count of the dataset after records have been removed
@@ -100,21 +115,30 @@ abstract class TableFilter(database: Database, table: Table)
       val childrenResults = table.child_tables.toSeq.flatten.flatMap { child =>
         val childFilter = child.storage_type match {
           case "parquet" => new ChildTableFilter(database, child, this) with HdfsStorage
-          case "avro" => new ChildTableFilter(database, child, this) with HdfsStorage
-          case "kudu" => new ChildTableFilter(database, child, this) with KuduStorage
-          case _ => throw new NotImplementedError()
+          case "avro"    => new ChildTableFilter(database, child, this) with HdfsStorage
+          case "kudu"    => new ChildTableFilter(database, child, this) with KuduStorage
+          case _         => throw new NotImplementedError()
         }
 
         childFilter.doFilter(computeCountsFlag, dryRun)
 
       }
-
-      val thisResult = persistFrame(computeCountsFlag,
-                                    dryRun,
-                                    qualifiedTableName,
-                                    table.storage_type,
-                                    currentFrame,
-                                    filteredFrame())
+      val thisResult = this match {
+        case _: KuduStorage =>
+          removeRecords(computeCountsFlag,
+                        dryRun,
+                        qualifiedTableName,
+                        table.storage_type,
+                        getCurrentFrame(table.storage_type),
+                        expiredRecords())
+        case _: HdfsStorage =>
+          removeRecords(computeCountsFlag,
+                        dryRun,
+                        qualifiedTableName,
+                        table.storage_type,
+                        getCurrentFrame(table.storage_type),
+                        filteredFrame())
+      }
 
       Seq(thisResult) ++ childrenResults
     }

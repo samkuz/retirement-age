@@ -10,12 +10,13 @@ import io.phdata.retirementage.domain.{DatasetReport, RetirementReport}
 import org.apache.kudu.spark.kudu._
 
 trait KuduStorage extends StorageActions with LazyLogging {
-  override def persistFrame(computeCountsFlag: Boolean,
-                            dryRun: Boolean,
-                            qualifiedTableName: String,
-                            storageType: String,
-                            currentFrame: DataFrame,
-                            filteredFrame: DataFrame): RetirementReport = {
+  //TODO: rename persistFrame
+  override def removeRecords(computeCountsFlag: Boolean,
+                             dryRun: Boolean,
+                             qualifiedTableName: String,
+                             storageType: String,
+                             currentFrame: DataFrame,
+                             filteredFrame: DataFrame): RetirementReport = {
     try {
       val kuduContext =
         new KuduContext("localhost:7051", spark.sqlContext.sparkContext)

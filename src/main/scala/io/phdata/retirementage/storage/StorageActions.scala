@@ -20,12 +20,12 @@ import io.phdata.retirementage.domain.RetirementReport
 import org.apache.spark.sql.DataFrame
 
 trait StorageActions {
-  def persistFrame(computeCountsFlag: Boolean,
-                   dryRun: Boolean,
-                   qualifiedTableName: String,
-                   storageType: String,
-                   currentFrame: DataFrame,
-                   filteredFrame: DataFrame): RetirementReport
+  def removeRecords(computeCountsFlag: Boolean,
+                    dryRun: Boolean,
+                    qualifiedTableName: String,
+                    storageType: String,
+                    currentFrame: DataFrame,
+                    filteredFrame: DataFrame): RetirementReport
 
   def getNewDatasetLocation(qualifiedTableName: String): String
 

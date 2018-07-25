@@ -199,7 +199,7 @@ class HdfsStorageTest extends FunSuite with SparkTestBase {
 
     val temp = getPersistFrame(database, table, df)
 
-    val retireReport = temp.persistFrame(true,
+    val retireReport = temp.removeRecords(true,
                                          false,
                                          temp.qualifiedTableName,
                                          "avro",
