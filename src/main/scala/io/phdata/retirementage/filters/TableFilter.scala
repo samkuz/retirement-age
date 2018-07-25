@@ -32,22 +32,9 @@ import org.apache.kudu.spark.kudu._
 abstract class TableFilter(database: Database, table: Table)
     extends StorageActions
     with LazyLogging {
-  lazy val currentFrame  = spark.read.table(qualifiedTableName).cache()
-  val qualifiedTableName = s"${database.name}.${table.name}"
 
-  def getCurrentFrame(storageType: String): DataFrame = {
-    storageType match {
-      case "parquet" => spark.read.table(qualifiedTableName).cache()
-      case "avro"    => spark.read.table(qualifiedTableName).cache()
-      case "kudu" =>
-        spark.sqlContext.read
-          .options(Map("kudu.master" -> "localhost:7051",
-                       "kudu.table"  -> qualifiedTableName))
-          .kudu
-          .cache()
-      case _ => throw new NotImplementedError()
-    }
-  }
+  lazy val currentFrame: DataFrame = getCurrentFrame(qualifiedTableName)
+  val qualifiedTableName           = s"${database.name}.${table.name}"
 
   /**
     * Count of the dataset after records have been removed
@@ -129,14 +116,14 @@ abstract class TableFilter(database: Database, table: Table)
                         dryRun,
                         qualifiedTableName,
                         table.storage_type,
-                        getCurrentFrame(table.storage_type),
+                        getCurrentFrame(qualifiedTableName),
                         expiredRecords())
         case _: HdfsStorage =>
           removeRecords(computeCountsFlag,
                         dryRun,
                         qualifiedTableName,
                         table.storage_type,
-                        getCurrentFrame(table.storage_type),
+                        getCurrentFrame(qualifiedTableName),
                         filteredFrame())
       }
 

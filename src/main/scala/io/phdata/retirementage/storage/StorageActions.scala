@@ -32,4 +32,7 @@ trait StorageActions {
   def getCurrentDatasetLocation(qualifiedTableName: String): String
 
   def undo(qualifiedTableName: String): RetirementReport
+
+  def getCurrentFrame(tableName: String): DataFrame
+
 }

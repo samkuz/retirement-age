@@ -27,6 +27,9 @@ import com.databricks.spark.avro._
   * Handles removing data from HDFS
   */
 trait HdfsStorage extends StorageActions with LazyLogging {
+  override def getCurrentFrame(tableName: String): DataFrame = {
+    spark.read.table(tableName).cache()
+  }
 
   override def removeRecords(computeCountsFlag: Boolean,
                              dryRun: Boolean,
