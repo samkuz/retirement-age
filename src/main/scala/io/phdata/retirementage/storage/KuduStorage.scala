@@ -8,11 +8,16 @@ import org.apache.spark.sql.DataFrame
 import io.phdata.retirementage.SparkDriver.spark
 import io.phdata.retirementage.domain.{DatasetReport, RetirementReport}
 import org.apache.kudu.spark.kudu._
+import io.phdata.retirementage.domain.GlobalConfig
 
 trait KuduStorage extends StorageActions with LazyLogging {
   override def getCurrentFrame(tableName: String): DataFrame = {
+    // Add correct exception to be thrown
+    val kuduMasters = GlobalConfig.kuduMasters
+      .getOrElse(throw new IllegalArgumentException("kuduMasters were not found"))
+      .mkString(",")
     spark.sqlContext.read
-      .options(Map("kudu.master" -> "localhost:7051", "kudu.table" -> tableName))
+      .options(Map("kudu.master" -> kuduMasters, "kudu.table" -> tableName))
       .kudu
   }
 
@@ -23,8 +28,11 @@ trait KuduStorage extends StorageActions with LazyLogging {
                              currentFrame: DataFrame,
                              filteredFrame: DataFrame): RetirementReport = {
     try {
+      val kuduMasters = GlobalConfig.kuduMasters
+        .getOrElse(throw new IllegalArgumentException("kuduMasters were not found"))
+        .mkString(",")
       val kuduContext =
-        new KuduContext("localhost:7051", spark.sqlContext.sparkContext)
+        new KuduContext(kuduMasters, spark.sqlContext.sparkContext)
 
       val currentDatasetCount = if (computeCountsFlag) Some(currentFrame.count()) else None
 
