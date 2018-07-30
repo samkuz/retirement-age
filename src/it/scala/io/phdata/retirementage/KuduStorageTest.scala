@@ -1,153 +1,152 @@
 package io.phdata.retirementage
 
 import java.util.UUID
+
 import io.phdata.retirementage.domain._
 import io.phdata.retirementage.filters.DatedTableFilter
 import io.phdata.retirementage.storage.KuduStorage
 import org.apache.kudu.client._
 import org.apache.kudu.spark.kudu._
 import org.apache.spark.sql.types._
-import org.scalatest.FunSuite
+import org.scalatest.{BeforeAndAfter, FunSuite}
 import scala.collection.JavaConverters._
 
-class KuduStorageTest extends FunSuite with SparkTestBase {
+class KuduStorageTest extends FunSuite with SparkTestBase with BeforeAndAfter {
   GlobalConfig.kuduMasters = Some(List("localhost:7051"))
   val kuduMaster  = GlobalConfig.kuduMasters.get.mkString(",")
   val kuduContext = new KuduContext(kuduMaster, spark.sqlContext.sparkContext)
 
-  test("don't make changes on a dry run") {
-    // Randomly generate table name
-    val kuduTableName =
-      createKuduTable(KuduObjects.defaultFactSchema, KuduObjects.defaultFactKey, kuduContext)
-    // Create table and database objects
-    val factTable =
-      DatedTable(kuduTableName, "kudu", "date", 1, None, None, None)
-    val database = Database("impala::default", Seq(factTable))
+  var subTableName  = ""
+  var dimTableName  = ""
+  var factTableName = ""
 
-    val qualifiedTableName = createQualifiedTableName(database, factTable)
-    // Insert test data
+  var subdimTable = ChildTable(subTableName, "kudu", KuduObjects.defaultDimJoin, None, None)
+  var dimTable =
+    ChildTable(dimTableName, "kudu", KuduObjects.defaultFactJoin, None, Some(List(subdimTable)))
+  var factTable = DatedTable("test", "kudu", "date", 1, None, None, Some(List(dimTable)))
+  var database  = Database("default", Seq(factTable))
+
+  var subQualifiedTableName  = ""
+  var dimQualifiedTableName  = ""
+  var factQualifiedTableName = ""
+
+  before {
+    factTableName =
+      createKuduTable(KuduObjects.defaultFactSchema, KuduObjects.defaultFactKey, kuduContext)
+    dimTableName =
+      createKuduTable(KuduObjects.defaultDimSchema, KuduObjects.defaultDimKey, kuduContext)
+    subTableName =
+      createKuduTable(KuduObjects.defaultSubSchema, KuduObjects.defaultSubKey, kuduContext)
+
+    subdimTable = ChildTable(subTableName, "kudu", KuduObjects.defaultDimJoin, None, None)
+    dimTable =
+      ChildTable(dimTableName, "kudu", KuduObjects.defaultFactJoin, None, Some(List(subdimTable)))
+    factTable = DatedTable(factTableName, "kudu", "date", 1, None, None, Some(List(dimTable)))
+    database = Database("impala::default", Seq(factTable))
+
     insertKuduData(factTable, TestObjects.smallDatasetSeconds, KuduObjects.defaultFactSchema)
 
-    val filter = new DatedTableFilter(database, factTable) with KuduStorage
+    insertKuduData(dimTable, KuduObjects.defaultDimData, KuduObjects.defaultDimSchema)
 
-    filter.doFilter(computeCountsFlag = false, dryRun = true)
+    insertKuduData(subdimTable, KuduObjects.defaultSubData, KuduObjects.defaultSubSchema)
 
-    val resultDf =
+    subQualifiedTableName = createQualifiedTableName(database, subdimTable)
+    dimQualifiedTableName = createQualifiedTableName(database, dimTable)
+    factQualifiedTableName = createQualifiedTableName(database, factTable)
+  }
+
+  after {
+    kuduContext.deleteTable(factQualifiedTableName)
+    kuduContext.deleteTable(dimQualifiedTableName)
+    kuduContext.deleteTable(subQualifiedTableName)
+  }
+
+  test("don't make changes on a dry run") {
+    // When
+    val SUT = new DatedTableFilter(database, factTable) with KuduStorage
+
+    SUT.doFilter(computeCountsFlag = false, dryRun = true)
+    // Then
+    val actual =
       spark.sqlContext.read
-        .options(Map("kudu.master" -> kuduMaster, "kudu.table" -> qualifiedTableName))
+        .options(Map("kudu.master" -> kuduMaster, "kudu.table" -> factQualifiedTableName))
         .kudu
 
-    assertResult(3)(resultDf.count())
+    assertResult(3)(actual.count())
   }
 
   test("delete expired fact table records") {
-    val kuduTableName =
-      createKuduTable(KuduObjects.defaultFactSchema, KuduObjects.defaultFactKey, kuduContext)
+    // When
+    val SUT = new DatedTableFilter(database, factTable) with KuduStorage
 
-    val factTable =
-      DatedTable(kuduTableName, "kudu", "date", 1, None, None, None)
-    val database = Database("impala::default", Seq(factTable))
-
-    val qualifiedTableName = createQualifiedTableName(database, factTable)
-
-    insertKuduData(factTable, TestObjects.smallDatasetSeconds, KuduObjects.defaultFactSchema)
-
-    val filter = new DatedTableFilter(database, factTable) with KuduStorage
-
-    val result = filter.doFilter(computeCountsFlag = true, dryRun = false)
-
-    val resultDf =
+    SUT.doFilter(computeCountsFlag = true, dryRun = false)
+    // Then
+    val actual =
       spark.sqlContext.read
-        .options(Map("kudu.master" -> kuduMaster, "kudu.table" -> qualifiedTableName))
+        .options(Map("kudu.master" -> kuduMaster, "kudu.table" -> factQualifiedTableName))
         .kudu
 
-    assertResult(1)(resultDf.count())
+    assertResult(1)(actual.count())
   }
 
   test("delete expired dimensional table records") {
-    val factTableName =
-      createKuduTable(KuduObjects.defaultFactSchema, KuduObjects.defaultFactKey, kuduContext)
-    val dimTableName =
-      createKuduTable(KuduObjects.defaultDimSchema, KuduObjects.defaultDimKey, kuduContext)
-    val dimensionTable: ChildTable =
-      ChildTable(dimTableName, "kudu", KuduObjects.defaultFactJoin, None, None)
-    val factTable =
-      DatedTable(factTableName, "kudu", "date", 1, None, None, Some(List(dimensionTable)))
-    val database = Database("impala::default", Seq(factTable))
+    // When
+    val SUT = new DatedTableFilter(database, factTable) with KuduStorage
 
-    insertKuduData(factTable, TestObjects.smallDatasetSeconds, KuduObjects.defaultFactSchema)
-
-    insertKuduData(dimensionTable, KuduObjects.defaultDimData, KuduObjects.defaultDimSchema)
-
-    val dimQualifiedTableName = s"${database.name}.${dimTableName}"
-
-    val filter = new DatedTableFilter(database, factTable) with KuduStorage
-    filter.doFilter(computeCountsFlag = false)
-
-    val resultDf =
+    SUT.doFilter(computeCountsFlag = false)
+    // Then
+    val actual =
       spark.sqlContext.read
         .options(Map("kudu.master" -> kuduMaster, "kudu.table" -> dimQualifiedTableName))
         .kudu
 
-    assertResult(1)(resultDf.count())
+    assertResult(1)(actual.count())
   }
 
   test("delete expired subdimensional table records") {
-    val factTableName =
-      createKuduTable(KuduObjects.defaultFactSchema, KuduObjects.defaultFactKey, kuduContext)
-    val dimTableName =
-      createKuduTable(KuduObjects.defaultDimSchema, KuduObjects.defaultDimKey, kuduContext)
-    val subTableName =
-      createKuduTable(KuduObjects.defaultSubSchema, KuduObjects.defaultSubKey, kuduContext)
+    // When
+    val SUT = new DatedTableFilter(database, factTable) with KuduStorage
 
-    val subdimTable: ChildTable =
-      ChildTable(subTableName, "kudu", KuduObjects.defaultDimJoin, None, None)
-    val dimensionTable: ChildTable =
-      ChildTable(dimTableName, "kudu", KuduObjects.defaultFactJoin, None, Some(List(subdimTable)))
-    val factTable =
-      DatedTable(factTableName, "kudu", "date", 1, None, None, Some(List(dimensionTable)))
-    val database = Database("impala::default", Seq(factTable))
-
-    insertKuduData(factTable, TestObjects.smallDatasetSeconds, KuduObjects.defaultFactSchema)
-
-    insertKuduData(dimensionTable, KuduObjects.defaultDimData, KuduObjects.defaultDimSchema)
-
-    insertKuduData(subdimTable, KuduObjects.defaultSubData, KuduObjects.defaultSubSchema)
-
-    val subQualifiedTableName = createQualifiedTableName(database, subdimTable)
-
-    val filter = new DatedTableFilter(database, factTable) with KuduStorage
-    filter.doFilter(computeCountsFlag = false)
-
-    val resultDf =
+    SUT.doFilter(computeCountsFlag = false)
+    // Then
+    val actual =
       spark.sqlContext.read
         .options(Map("kudu.master" -> kuduMaster, "kudu.table" -> subQualifiedTableName))
         .kudu
 
-    assertResult(1)(resultDf.count())
+    assertResult(1)(actual.count())
   }
 
   test("Don't filter out child dataset with a hold") {
-    val factTableName =
+    val factTableNameTemp =
       createKuduTable(KuduObjects.defaultFactSchema, KuduObjects.defaultFactKey, kuduContext)
-    val dimTableName =
+    val dimTableNameTemp =
       createKuduTable(KuduObjects.defaultDimSchema, KuduObjects.defaultDimKey, kuduContext)
 
-    val dimensionTable: ChildTable =
-      ChildTable(dimTableName, "kudu", KuduObjects.defaultFactJoin, Some(Hold(true, "legal", "legal@client.biz")), None)
-    val factTable =
-      DatedTable(factTableName, "kudu", "date", 1, None, None, Some(List(dimensionTable)))
-    val database = Database("impala::default", Seq(factTable))
+    val dimensionTableTemp: ChildTable =
+      ChildTable(dimTableNameTemp,
+                 "kudu",
+                 KuduObjects.defaultFactJoin,
+                 Some(Hold(true, "legal", "legal@client.biz")),
+                 None)
+    val factTableTemp =
+      DatedTable(factTableNameTemp, "kudu", "date", 1, None, None, Some(List(dimensionTableTemp)))
+    val databaseTemp = Database("impala::default", Seq(factTableTemp))
 
-    insertKuduData(factTable, TestObjects.smallDatasetSeconds, KuduObjects.defaultFactSchema)
+    insertKuduData(factTableTemp, TestObjects.smallDatasetSeconds, KuduObjects.defaultFactSchema)
 
-    insertKuduData(dimensionTable, KuduObjects.defaultDimData, KuduObjects.defaultDimSchema)
+    insertKuduData(dimensionTableTemp, KuduObjects.defaultDimData, KuduObjects.defaultDimSchema)
 
-    val dimQualifiedTableName = s"${database.name}.${dimTableName}"
+    val newQualifiedTableName = s"${databaseTemp.name}.${dimTableNameTemp}"
 
+    // When
+    val SUT = new DatedTableFilter(databaseTemp, factTableTemp) with KuduStorage
+
+    SUT.doFilter(computeCountsFlag = false)
+    // Then
     val resultDf =
       spark.sqlContext.read
-        .options(Map("kudu.master" -> kuduMaster, "kudu.table" -> dimQualifiedTableName))
+        .options(Map("kudu.master" -> kuduMaster, "kudu.table" -> newQualifiedTableName))
         .kudu
 
     assertResult(3)(resultDf.count())
