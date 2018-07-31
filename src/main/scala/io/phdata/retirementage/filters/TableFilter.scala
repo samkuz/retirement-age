@@ -34,7 +34,20 @@ abstract class TableFilter(database: Database, table: Table)
     with LazyLogging {
 
   lazy val currentFrame: DataFrame = getCurrentFrame(qualifiedTableName)
-  val qualifiedTableName           = s"${database.name}.${table.name}"
+  val qualifiedTableName: String   = setQualifiedName(database, table)
+
+  /**
+    * Returns the qualified table name for a given database and table.
+    * The database name will be empty when working with Kudu tables
+    * which do not belong to a database.
+    */
+  def setQualifiedName(database: Database, table: Table): String = {
+    if (database.name.equals("")) {
+      table.name
+    } else {
+      s"${database.name}.${table.name}"
+    }
+  }
 
   /**
     * Count of the dataset after records have been removed
