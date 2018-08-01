@@ -28,6 +28,7 @@ class LoadGeneratorConfig(args: Array[String]) extends ScallopConf(args) {
   val dimName  = opt[String]("dim-name", required = false, default = Some("dimloadtest"))
   val subName  = opt[String]("subdim-name", required = false, default = Some("subloadtest"))
 
-  val testKudu = opt[Boolean]("test-kudu", required = false, default = Some(false))
+  val outputFormat = opt[String]("output-format", required = true, default = Some("parquet"))
+
   verify()
 }
