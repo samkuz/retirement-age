@@ -42,7 +42,9 @@ object LoadGenerator {
       .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .getOrCreate()
 
-    GlobalConfig.kuduMasters = Some(List("master3.valhalla.phdata.io:7051"))
+    val mastersList = conf.kuduMasters().split(",").toList
+
+    GlobalConfig.kuduMasters = Some(mastersList)
 
     val kuduContext =
       new KuduContext(GlobalConfig.kuduMasters.get.mkString(","), spark.sqlContext.sparkContext)
