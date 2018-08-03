@@ -12,8 +12,8 @@ class KuduLoadGeneratorTest extends FunSuite with SparkTestBase {
   val kuduContext =
     new KuduContext(kuduMaster, spark.sqlContext.sparkContext)
 
-  def confSetup(factNum: Int, dimNum: Int, subNum: Int): Array[String] = {
-    Array("--fact-count",
+  def confSetup(factNum: Int, dimNum: Int, subNum: Int): LoadGeneratorConfig = {
+    val confArgs = Array("--fact-count",
           factNum.toString,
           "--dimension-count",
           dimNum.toString,
@@ -21,13 +21,13 @@ class KuduLoadGeneratorTest extends FunSuite with SparkTestBase {
           subNum.toString,
           "--output-format",
           "kudu")
+
+    new LoadGeneratorConfig(confArgs)
   }
 
   test("Create kudu table with specified payload and record size") {
     // Setup
-    val confArgs = confSetup(10000, 0, 0)
-
-    val conf = new LoadGeneratorConfig(confArgs)
+    val conf = confSetup(10000, 0, 0)
 
     // When
     val SUT = LoadGenerator.generateTables(spark: SparkSession,
@@ -45,9 +45,7 @@ class KuduLoadGeneratorTest extends FunSuite with SparkTestBase {
 
   test("Create dimensional kudu table where dimensional-count < fact-count") {
     // Setup
-    val confArgs = confSetup(2000, 1000, 0)
-
-    val conf = new LoadGeneratorConfig(confArgs)
+    val conf = confSetup(2000, 1000, 0)
 
     // When
     val SUT = LoadGenerator.generateTables(spark: SparkSession,
@@ -65,9 +63,7 @@ class KuduLoadGeneratorTest extends FunSuite with SparkTestBase {
 
   test("Create dimensional kudu table where dimensional-count > fact-count") {
     // Setup
-    val confArgs = confSetup(1000, 2000, 0)
-
-    val conf = new LoadGeneratorConfig(confArgs)
+    val conf = confSetup(1000, 2000, 0)
 
     // When
     val SUT = LoadGenerator.generateTables(spark: SparkSession,
@@ -85,9 +81,7 @@ class KuduLoadGeneratorTest extends FunSuite with SparkTestBase {
 
   test("Create subdimensional kudu table where subdimensional-count < dimensional-count") {
     // Setup
-    val confArgs = confSetup(2000, 1000, 500)
-
-    val conf = new LoadGeneratorConfig(confArgs)
+    val conf = confSetup(2000, 1000, 500)
 
     // When
     val SUT = LoadGenerator.generateTables(spark: SparkSession,
@@ -105,9 +99,7 @@ class KuduLoadGeneratorTest extends FunSuite with SparkTestBase {
 
   test("Create subdimensional kudu table where subdimensional-count > dimensional-count") {
     // Setup
-    val confArgs = confSetup(2000, 1000, 2000)
-
-    val conf = new LoadGeneratorConfig(confArgs)
+    val conf = confSetup(2000, 1000, 2000)
 
     // When
     val SUT = LoadGenerator.generateTables(spark: SparkSession,

@@ -89,15 +89,12 @@ object LoadGenerator {
           .saveAsTable(s"${conf.databaseName()}.${conf.subName()}")
       case "kudu" =>
         createKuduTable(kuduContext, conf.factName(), 10)
-
         kuduContext.insertRows(factDf, conf.factName())
 
         createKuduTable(kuduContext, conf.dimName(), 10)
-
         kuduContext.insertRows(dimensionDf, conf.dimName())
 
         createKuduTable(kuduContext, conf.subName(), 10)
-
         kuduContext.insertRows(subDimensionDf, conf.subName())
       case _ => throw new UnsupportedOperationException
     }
@@ -222,25 +219,26 @@ object LoadGenerator {
 
   }
 
-  /*
-   * createKuduTable creates a kudu table given:
-   * tableName: The name of the kudu table to create
-   * numBuckets: The number of buckets for the hash partition
-   */
+  /**
+    * Generates a kudu table
+    * @param kuduContext
+    * @param tableName: Name of kudu table to create
+    * @param numBuckets: Number of buckets in kudu table
+    */
   def createKuduTable(kuduContext: KuduContext, tableName: String, numBuckets: Int): Unit = {
     val defaultSchema = StructType(StructField("id", StringType, false) :: Nil)
       .add(StructField("payload", StringType, false))
       .add(StructField("dimension_id", StringType, false))
       .add(StructField("expiration_date", StringType, false))
-    val defaultKey = Seq("id")
+    val primaryKey = Seq("id")
 
     val tableOptions = new CreateTableOptions()
-      .setNumReplicas(1)
-      .addHashPartitions(List(defaultKey(0)).asJava, numBuckets)
+      .setNumReplicas(3)
+      .addHashPartitions(List(primaryKey(0)).asJava, numBuckets)
 
     if (kuduContext.tableExists(tableName)) {
       kuduContext.deleteTable(tableName)
     }
-    kuduContext.createTable(tableName, defaultSchema, defaultKey, tableOptions)
+    kuduContext.createTable(tableName, defaultSchema, primaryKey, tableOptions)
   }
 }
