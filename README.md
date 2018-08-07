@@ -44,7 +44,7 @@ sbt assembly
 ```
 
 ## Configuration
-Retirement Age uses a yamlconfiguration file ‘retirement-age.yml’. This configuration file holds the information to run
+Retirement Age uses a yaml configuration file ‘retirement-age.yml’. This configuration file holds the information to run
 this application. In this configuration file you will store information regarding the tables you want to filter, the databases
 the tables live in, and other crucial information. An example can be seen here:
 
