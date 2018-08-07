@@ -17,9 +17,9 @@
 
 # Retirement Age
 The Retirement Age data-lifecycle application is an open source solution for removing dataset records past an expiration date.
-Allowing you to easily filter datasets stored in Parquet and Avro, using the Hive Metastore, or datasets stored in Kudu.
-Retirement Age helps to easily meet federal regulations for data retention while filtering out unneeded records or simply
-clean up old unused data.
+It allows you to easily filter datasets stored in Parquet and Avro, using the Hive Metastore, or datasets stored in Kudu.
+Retirement Age helps to easily meet federal regulations or liability reasons for data retention while filtering out
+unneeded records or simply clean up old unused data.
 
 [How Retirement Age works](#how-it-works).
 
@@ -120,9 +120,6 @@ expiration. For example, if you have a fact table with a foreign key to a dimens
 record removed, Retirement Age will make the join to the dimension table and remove the dimension table record. See the child
 table example in [Configuration](#configuration). Related tables need a join key instead of an expiration column and expiration
 date. This join key will be used to join the Parent and Child table on.
-
-Child tables can be arbitrarily nested, so you can have a parent table that points to a child table, and a child table that
-points to a grandchild table.
 
 parent -> child -> grandchild
 
