@@ -42,19 +42,16 @@ object LoadGenerator {
       .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .getOrCreate()
 
-    val mastersList = conf.kuduMasters().split(",").toList
+    if (conf.outputFormat() == "kudu") {
+      val mastersList = conf.kuduMasters().split(",").toList
 
-    GlobalConfig.kuduMasters = Some(mastersList)
+      GlobalConfig.kuduMasters = Some(mastersList)
+    }
 
-    val kuduContext =
-      new KuduContext(GlobalConfig.kuduMasters.get.mkString(","), spark.sqlContext.sparkContext)
-
-    generateTables(spark, kuduContext, conf)
+    generateTables(spark, conf)
   }
 
-  def generateTables(spark: SparkSession,
-                     kuduContext: KuduContext,
-                     conf: LoadGeneratorConfig): Unit = {
+  def generateTables(spark: SparkSession, conf: LoadGeneratorConfig): Unit = {
     // generate fact table
     val factDf = generateTable(spark, conf.factCount(), 1).persist(StorageLevel.MEMORY_AND_DISK)
 
@@ -88,6 +85,9 @@ object LoadGenerator {
           .mode(SaveMode.Overwrite)
           .saveAsTable(s"${conf.databaseName()}.${conf.subName()}")
       case "kudu" =>
+        val kuduContext =
+          new KuduContext(GlobalConfig.kuduMasters.get.mkString(","), spark.sqlContext.sparkContext)
+        
         createKuduTable(kuduContext, conf.factName(), 10)
         kuduContext.insertRows(factDf, conf.factName())
 

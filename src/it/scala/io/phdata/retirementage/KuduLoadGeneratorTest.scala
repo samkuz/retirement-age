@@ -14,13 +14,13 @@ class KuduLoadGeneratorTest extends FunSuite with SparkTestBase {
 
   def confSetup(factNum: Int, dimNum: Int, subNum: Int): LoadGeneratorConfig = {
     val confArgs = Array("--fact-count",
-          factNum.toString,
-          "--dimension-count",
-          dimNum.toString,
-          "--subdimension-count",
-          subNum.toString,
-          "--output-format",
-          "kudu")
+                         factNum.toString,
+                         "--dimension-count",
+                         dimNum.toString,
+                         "--subdimension-count",
+                         subNum.toString,
+                         "--output-format",
+                         "kudu")
 
     new LoadGeneratorConfig(confArgs)
   }
@@ -30,9 +30,7 @@ class KuduLoadGeneratorTest extends FunSuite with SparkTestBase {
     val conf = confSetup(10000, 0, 0)
 
     // When
-    LoadGenerator.generateTables(spark: SparkSession,
-                                           kuduContext: KuduContext,
-                                           conf: LoadGeneratorConfig)
+    LoadGenerator.generateTables(spark: SparkSession, conf: LoadGeneratorConfig)
 
     // Then
     val actual =
@@ -48,9 +46,7 @@ class KuduLoadGeneratorTest extends FunSuite with SparkTestBase {
     val conf = confSetup(2000, 1000, 0)
 
     // When
-    LoadGenerator.generateTables(spark: SparkSession,
-                                           kuduContext: KuduContext,
-                                           conf: LoadGeneratorConfig)
+    LoadGenerator.generateTables(spark: SparkSession, conf: LoadGeneratorConfig)
 
     // Then
     val actual =
@@ -66,9 +62,7 @@ class KuduLoadGeneratorTest extends FunSuite with SparkTestBase {
     val conf = confSetup(1000, 2000, 0)
 
     // When
-    LoadGenerator.generateTables(spark: SparkSession,
-                                           kuduContext: KuduContext,
-                                           conf: LoadGeneratorConfig)
+    LoadGenerator.generateTables(spark: SparkSession, conf: LoadGeneratorConfig)
 
     // Then
     val actual =
@@ -84,9 +78,7 @@ class KuduLoadGeneratorTest extends FunSuite with SparkTestBase {
     val conf = confSetup(2000, 1000, 500)
 
     // When
-    LoadGenerator.generateTables(spark: SparkSession,
-                                           kuduContext: KuduContext,
-                                           conf: LoadGeneratorConfig)
+    LoadGenerator.generateTables(spark: SparkSession, conf: LoadGeneratorConfig)
 
     // Then
     val actual =
@@ -102,9 +94,7 @@ class KuduLoadGeneratorTest extends FunSuite with SparkTestBase {
     val conf = confSetup(2000, 1000, 2000)
 
     // When
-    LoadGenerator.generateTables(spark: SparkSession,
-                                           kuduContext: KuduContext,
-                                           conf: LoadGeneratorConfig)
+    LoadGenerator.generateTables(spark: SparkSession, conf: LoadGeneratorConfig)
 
     // Then
     val actual =
