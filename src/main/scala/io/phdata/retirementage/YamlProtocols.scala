@@ -17,7 +17,7 @@
 package io.phdata.retirementage
 
 import io.phdata.retirementage.domain._
-import net.jcazevedo.moultingyaml.{DefaultYamlProtocol, YamlFormat}
+import net.jcazevedo.moultingyaml.{DefaultYamlProtocol, YamlArray, YamlFormat, YamlObject, YamlString}
 
 /**
   * Yaml protocols for parsing yaml configuration into domain objects using MoultingYaml.
@@ -34,4 +34,39 @@ object YamlProtocols extends DefaultYamlProtocol {
   implicit val configFormat   = yamlFormat2(Config)
   implicit val datasetReport  = yamlFormat2(DatasetReport)
   implicit val resultFormat   = yamlFormat5(RetirementReport)
+
+  implicit object TableYamlFormat extends YamlFormat[Database] {
+    def write(t: Table) = {
+      t match{
+        case _: DatedTable => YamlArray(YamlString(t.name))
+
+        case _: CustomTable =>YamlArray(YamlString(t.name), YamlString(t.storage_type), YamlArray)
+      }
+    }
+
+    )
+
+    //      YamlObject(
+    //      YamlString("name") -> YamlString(c.name),
+    //      YamlString("red") -> YamlNumber(c.red),
+    //      YamlString("green") -> YamlNumber(c.green),
+    //      YamlString("blue") -> YamlNumber(c.blue)
+    //    )
+    def read(value: YamlValue) = {
+      //      value.asYamlObject.getFields(
+      //        YamlString("name"),
+      //        YamlString("red"),
+      //        YamlString("green"),
+      //        YamlString("blue")) match {
+      //        case Seq(
+      //        YamlString(name),
+      //        YamlNumber(red: Int),
+      //        YamlNumber(green: Int),
+      //        YamlNumber(blue: Int)) =>
+      //          new Color(name, red, green, blue)
+      //        case _ => deserializationError("Color expected")
+      //      }
+    }
+  }
 }
+
