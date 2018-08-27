@@ -1,34 +1,13 @@
-/*
- * Copyright 2018 phData Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-package io.phdata.retirementage
-
 import io.phdata.retirementage.domain._
-//import net.jcazevedo.moultingyaml.{DefaultYamlProtocol, YamlArray, YamlFormat, YamlObject, YamlString}
 import net.jcazevedo.moultingyaml._
+import io.phdata.retirementage.YamlProtocols.{lazyFormat, yamlFormat2, yamlFormat3, yamlFormat5, yamlFormat7, _}
 
-/**
-  * Yaml protocols for parsing yaml configuration into domain objects using MoultingYaml.
-  *
-  */
 object YamlProtocols extends DefaultYamlProtocol {
   implicit val joinKeys = yamlFormat2(JoinOn)
   // Make the yamlformat lazy to allow for recursive Table types
   implicit val datedTable: YamlFormat[DatedTable]   = lazyFormat(yamlFormat7(DatedTable))
   implicit val relatedTable: YamlFormat[ChildTable] = lazyFormat(yamlFormat5(ChildTable))
+  implicit val customTable: YamlFormat[CustomTable] = lazyFormat(yamlFormat5(CustomTable))
   implicit val hold                                 = yamlFormat3(Hold)
 
   implicit val tableFormat    = TableYamlFormat
@@ -53,9 +32,7 @@ object YamlProtocols extends DefaultYamlProtocol {
           YamlObject(
             YamlString("name")         -> YamlString(c.name),
             YamlString("storage_type") -> YamlString(c.storage_type),
-            YamlString("filters")      -> YamlNull,
-            YamlString("hold")         -> YamlNull,
-            YamlString("child_tables") -> YamlNull
+            YamlString("filters")      -> YamlString("filter")
           )
       }
     }
@@ -65,21 +42,47 @@ object YamlProtocols extends DefaultYamlProtocol {
         YamlString("name"),
         YamlString("storage_type"),
         YamlString("expiration_column"),
-        YamlString("expiration_days"),
-        YamlString("hold"),
-        YamlString("child_tables")
+        YamlString("expiration_days")
       ) match {
         case Seq(YamlString(name),
         YamlString(storage_type),
         YamlString(expiration_column),
-        YamlNumber(expiration_days),
-        YamlNull,
-        YamlNull) =>
+        YamlNumber(expiration_days)) =>
           DatedTable(name, storage_type, expiration_column, expiration_days.toInt, None, None, None)
-        case Seq(YamlString(name), YamlString(storage_type), YamlNull, YamlNull, YamlNull) =>
-          CustomTable(name, storage_type, None, None, None)
+        case Seq(YamlString(name), YamlString(storage_type), YamlString(filters)) =>
+          CustomTable(name, storage_type, filters, None, None)
       }
     }
   }
 
 }
+
+val yamlTest = DatedTable("test1", "parquet", "col1", 10, None, None, None).toYaml
+
+val table1 = yamlTest.convertTo[DatedTable]
+
+val yamlTest2 = CustomTable("test2", "parquet", "misc", None, None).toYaml
+
+val table2 = yamlTest2.converTo[CustomTable]
+
+//val file =
+//  """
+//    |databases:
+//    |  - name: database1
+//    |    tables:
+//    |      - name: parquet1
+//    |        storage_type: parquet
+//    |        expiration_column: col1
+//    |        expiration_days: 10
+//    |        hold:
+//    |        child_tables:
+//    |      - name: kudu1
+//    |        storage_type: kudu
+//    |        filters:
+//    |        hold: false
+//    |        child_tables:
+//  """.stripMargin
+//
+//val test = file.parseYaml
+//
+//println(test)
