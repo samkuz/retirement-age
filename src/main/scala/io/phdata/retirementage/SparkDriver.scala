@@ -19,12 +19,7 @@ package io.phdata.retirementage
 import com.amazonaws.services.kinesis.model.InvalidArgumentException
 import com.typesafe.scalalogging.LazyLogging
 import io.phdata.retirementage.domain._
-import io.phdata.retirementage.filters.{
-  ChildTableFilter,
-  DatedTableFilter,
-  TableFilter,
-  CustomTableFilter
-}
+import io.phdata.retirementage.filters._
 import io.phdata.retirementage.storage.{HdfsStorage, KuduStorage}
 import org.apache.spark.sql.SparkSession
 
@@ -94,12 +89,5 @@ object SparkDriver extends LazyLogging {
         }
 
     }
-
-//    table.storage_type match {
-//      case "parquet" => new DatedTableFilter(database, table) with HdfsStorage
-//      case "avro"    => new DatedTableFilter(database, table) with HdfsStorage
-//      case "kudu"    => new DatedTableFilter(database, table) with KuduStorage
-//      case _         => throw new NotImplementedError()
-//    }
   }
 }

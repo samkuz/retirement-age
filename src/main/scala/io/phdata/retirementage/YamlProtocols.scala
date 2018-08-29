@@ -17,7 +17,6 @@
 package io.phdata.retirementage
 
 import io.phdata.retirementage.domain._
-//import net.jcazevedo.moultingyaml.{DefaultYamlProtocol, YamlArray, YamlFormat, YamlObject, YamlString}
 import net.jcazevedo.moultingyaml._
 
 /**
@@ -31,8 +30,9 @@ object YamlProtocols extends DefaultYamlProtocol {
   implicit val relatedTable: YamlFormat[ChildTable] = lazyFormat(yamlFormat5(ChildTable))
   implicit val hold                                 = yamlFormat3(Hold)
 
-  implicit val customTable: YamlFormat[CustomTable] = lazyFormat(yamlFormat5(CustomTable))
-  implicit val tableFormat: YamlFormat[Table]       = TableYamlFormat
+  implicit val filterFormat: YamlFormat[CustomFilter] = lazyFormat(yamlFormat1(CustomFilter))
+  implicit val customTable: YamlFormat[CustomTable]   = lazyFormat(yamlFormat5(CustomTable))
+  implicit val tableFormat: YamlFormat[Table]         = TableYamlFormat
 
   implicit val databaseFormat = yamlFormat2(Database)
   implicit val configFormat   = yamlFormat2(Config)
@@ -60,7 +60,7 @@ object YamlProtocols extends DefaultYamlProtocol {
           YamlObject(
             YamlString("name")         -> YamlString(c.name),
             YamlString("storage_type") -> YamlString(c.storage_type),
-            YamlString("filters")      -> YamlString(c.filters),
+            YamlString("filters")      -> c.filters.toYaml,
             YamlString("hold")         -> c.hold.toYaml,
             YamlString("child_tables") -> c.child_tables.toYaml
           )

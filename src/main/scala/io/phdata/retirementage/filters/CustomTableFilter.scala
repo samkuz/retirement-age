@@ -1,11 +1,9 @@
 package io.phdata.retirementage.filters
 
+import com.amazonaws.services.kinesis.model.InvalidArgumentException
 import io.phdata.retirementage.domain.{CustomTable, Database}
-import org.apache.spark.sql.{Column, DataFrame}
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types._
-
-import scala.util.{Failure, Success, Try}
 
 abstract class CustomTableFilter(database: Database, table: CustomTable)
     extends TableFilter(database, table) {
@@ -19,19 +17,16 @@ abstract class CustomTableFilter(database: Database, table: CustomTable)
   override def hasExpiredRecords(): Boolean = true
 
   def executeFilter(): DataFrame = {
-    currentFrame
-//    // add try catch block
-//    if (table.filters.isDefined) {
-//      var tempFrame = currentFrame
-//      for (i <- table.filters.get) {
-//        tempFrame.createOrReplaceTempView("tempFrame")
-//        log(s"Executing SQL Query: SELECT * FROM tempFrame WHERE ${i.filter}")
-//        tempFrame = tempFrame.sqlContext.sql(s"SELECT * FROM tempFrame WHERE ${i.filter}")
-//      }
-//      tempFrame
-//    } else {
-//      log("No custom filters defined")
-//      currentFrame
-//    }
+    try {
+      var tempFrame = currentFrame
+      for (i <- table.filters) {
+        tempFrame.createOrReplaceTempView("tempFrame")
+        log(s"Executing SQL Query: SELECT * FROM tempFrame WHERE NOT ${i.filter}")
+        tempFrame = tempFrame.sqlContext.sql(s"SELECT * FROM tempFrame WHERE NOT ${i.filter}")
+      }
+      tempFrame
+    } catch {
+      case _: Throwable => throw new InvalidArgumentException("No filters found")
+    }
   }
 }
