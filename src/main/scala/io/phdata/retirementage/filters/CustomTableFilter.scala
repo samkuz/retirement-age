@@ -19,18 +19,19 @@ abstract class CustomTableFilter(database: Database, table: CustomTable)
   override def hasExpiredRecords(): Boolean = true
 
   def executeFilter(): DataFrame = {
-    // add try catch block
-    if (table.filters.isDefined) {
-      var tempFrame = currentFrame
-      for (i <- table.filters.get) {
-        tempFrame.createOrReplaceTempView("tempFrame")
-        log(s"Executing SQL Query: SELECT * FROM tempFrame WHERE ${i.filter}")
-        tempFrame = tempFrame.sqlContext.sql(s"SELECT * FROM tempFrame WHERE ${i.filter}")
-      }
-      tempFrame
-    } else {
-      log("No custom filters defined")
-      currentFrame
-    }
+    currentFrame
+//    // add try catch block
+//    if (table.filters.isDefined) {
+//      var tempFrame = currentFrame
+//      for (i <- table.filters.get) {
+//        tempFrame.createOrReplaceTempView("tempFrame")
+//        log(s"Executing SQL Query: SELECT * FROM tempFrame WHERE ${i.filter}")
+//        tempFrame = tempFrame.sqlContext.sql(s"SELECT * FROM tempFrame WHERE ${i.filter}")
+//      }
+//      tempFrame
+//    } else {
+//      log("No custom filters defined")
+//      currentFrame
+//    }
   }
 }

@@ -31,7 +31,9 @@ object YamlProtocols extends DefaultYamlProtocol {
   implicit val relatedTable: YamlFormat[ChildTable] = lazyFormat(yamlFormat5(ChildTable))
   implicit val hold                                 = yamlFormat3(Hold)
 
-  implicit val tableFormat    = TableYamlFormat
+  implicit val customTable: YamlFormat[CustomTable] = lazyFormat(yamlFormat5(CustomTable))
+  implicit val tableFormat: YamlFormat[Table]       = TableYamlFormat
+
   implicit val databaseFormat = yamlFormat2(Database)
   implicit val configFormat   = yamlFormat2(Config)
   implicit val datasetReport  = yamlFormat2(DatasetReport)
@@ -46,40 +48,34 @@ object YamlProtocols extends DefaultYamlProtocol {
             YamlString("storage_type")      -> YamlString(d.storage_type),
             YamlString("expiration_column") -> YamlString(d.expiration_column),
             YamlString("expiration_days")   -> YamlNumber(d.expiration_days),
-            YamlString("hold")              -> YamlNull,
-            YamlString("child_tables")      -> YamlNull
+            YamlString("hold")              -> d.hold.toYaml,
+            YamlString("date_format_string") -> (if (d.date_format_string.isDefined) {
+                                                   YamlString(d.date_format_string.get)
+                                                 } else {
+                                                   YamlNull
+                                                 }),
+            YamlString("child_tables") -> d.child_tables.toYaml
           )
         case c: CustomTable =>
           YamlObject(
             YamlString("name")         -> YamlString(c.name),
             YamlString("storage_type") -> YamlString(c.storage_type),
-            YamlString("filters")      -> YamlNull,
-            YamlString("hold")         -> YamlNull,
-            YamlString("child_tables") -> YamlNull
+            YamlString("filters")      -> YamlString(c.filters),
+            YamlString("hold")         -> c.hold.toYaml,
+            YamlString("child_tables") -> c.child_tables.toYaml
           )
       }
     }
 
     def read(value: YamlValue) = {
-      value.asYamlObject.getFields(
-        YamlString("name"),
-        YamlString("storage_type"),
-        YamlString("expiration_column"),
-        YamlString("expiration_days"),
-        YamlString("hold"),
-        YamlString("child_tables")
-      ) match {
-        case Seq(YamlString(name),
-        YamlString(storage_type),
-        YamlString(expiration_column),
-        YamlNumber(expiration_days),
-        YamlNull,
-        YamlNull) =>
-          DatedTable(name, storage_type, expiration_column, expiration_days.toInt, None, None, None)
-        case Seq(YamlString(name), YamlString(storage_type), YamlNull, YamlNull, YamlNull) =>
-          CustomTable(name, storage_type, None, None, None)
+      try {
+        value.asYamlObject.convertTo[DatedTable]
+      } catch {
+        case _: Throwable => value.asYamlObject.convertTo[CustomTable]
       }
+
     }
+
   }
 
 }
