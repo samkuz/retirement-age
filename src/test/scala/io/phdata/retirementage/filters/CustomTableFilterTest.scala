@@ -11,7 +11,9 @@ import java.sql.Date
 class CustomTableFilterTest extends FunSuite with SparkTestBase {
   test("Filter out a date when column is unix time seconds") {
 
-    val table    = CustomTable("table1", "parquet", List(CustomFilter(s"date = ${Date.valueOf("2018-12-25").getTime / 1000}")), None, None)
+    val testFilter = CustomFilter(s"date = ${Date.valueOf("2018-12-25").getTime / 1000}")
+
+    val table    = CustomTable("table1", "parquet", List(testFilter), None, None)
     val database = Database("default", Seq(table))
     val schema   = StructType(StructField("date", LongType, false) :: Nil)
     val data     = TestObjects.smallDatasetSeconds
@@ -26,10 +28,8 @@ class CustomTableFilterTest extends FunSuite with SparkTestBase {
 
   def getCustomFrameFilter(database: Database, table: CustomTable, frame: DataFrame) = {
     class TestTableFilter(database: Database, table: CustomTable)
-      extends CustomTableFilter(database, table)
+        extends CustomTableFilter(database, table)
         with HdfsStorage {
-
-      //override lazy val currentFrame: DataFrame = frame
 
       override def removeRecords(computeCountsFlag: Boolean,
                                  dryRun: Boolean,
@@ -44,7 +44,7 @@ class CustomTableFilterTest extends FunSuite with SparkTestBase {
           DatasetReport("", Some(currentDatasetCount)),
           Some(
             DatasetReport(getCurrentDatasetLocation(s"${database.name}.${table.name}"),
-              Some(filteredFrame.count()))),
+                          Some(filteredFrame.count()))),
           None
         )
       }

@@ -12,21 +12,20 @@ abstract class CustomTableFilter(database: Database, table: CustomTable)
     currentFrame.except(filteredFrame())
   }
 
-  override def filteredFrame() = executeFilter()
-
-  override def hasExpiredRecords(): Boolean = true
-
-  def executeFilter(): DataFrame = {
+  override def filteredFrame() = {
     try {
       var tempFrame = currentFrame
       for (i <- table.filters) {
+        val query = s"SELECT * FROM tempFrame WHERE NOT ${i.filter}"
         tempFrame.createOrReplaceTempView("tempFrame")
-        log(s"Executing SQL Query: SELECT * FROM tempFrame WHERE NOT ${i.filter}")
-        tempFrame = tempFrame.sqlContext.sql(s"SELECT * FROM tempFrame WHERE NOT ${i.filter}")
+        log(s"Executing SQL Query: " + query)
+        tempFrame = tempFrame.sqlContext.sql(query)
       }
       tempFrame
     } catch {
       case _: Throwable => throw new InvalidArgumentException("No filters found")
     }
   }
+
+  override def hasExpiredRecords(): Boolean = true
 }

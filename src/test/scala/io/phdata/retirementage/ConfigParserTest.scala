@@ -61,7 +61,7 @@ class ConfigParserTest extends FunSuite {
         |        hold:
         |          active: true
         |          reason: "legal"
-        |          owner: skuznia@phdata.io
+        |          owner: random@random.io
       """.stripMargin
 
     val actual = RetirementConfigParser.parse(testFile)
@@ -96,7 +96,7 @@ class ConfigParserTest extends FunSuite {
               CustomTable("customTable1",
                           "parquet",
                           List(CustomFilter("id = 1")),
-                          Some(Hold(true, "legal", "skuznia@phdata.io")),
+                          Some(Hold(true, "legal", "random@random.io")),
                           None)
             )
           ))

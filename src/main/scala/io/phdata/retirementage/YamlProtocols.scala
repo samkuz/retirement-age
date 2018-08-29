@@ -68,6 +68,7 @@ object YamlProtocols extends DefaultYamlProtocol {
     }
 
     def read(value: YamlValue) = {
+      //TODO: Correctly handle exceptions
       try {
         value.asYamlObject.convertTo[DatedTable]
       } catch {
